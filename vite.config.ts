@@ -1,23 +1,26 @@
+
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { fileURLToPath } from 'url';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      server: {
-        port: 3000,
-        host: '0.0.0.0',
-      },
-      plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
-      resolve: {
-        alias: {
-          '@': path.resolve(__dirname, '.'),
-        }
-      }
-    };
+// Fix: Manually define __dirname as it is not available in ES modules by default.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+  },
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    },
+  },
+  // On s'assure que Vite ne cherche pas de variables process.env
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+  }
 });
