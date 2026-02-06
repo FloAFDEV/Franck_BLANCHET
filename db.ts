@@ -1,5 +1,5 @@
-// Fix: Use named import for Dexie to ensure instance methods like 'version' are properly inherited and recognized by the TypeScript compiler.
-import { Dexie, Table } from 'dexie';
+// Fix: Use default import for Dexie to ensure instance methods like 'version' are properly inherited and recognized by the TypeScript compiler.
+import Dexie, { Table } from 'dexie';
 import { Patient, Session, Practitioner } from './types';
 
 // OsteoDB extends the Dexie class to manage our local IndexedDB instance.

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, AlertTriangle, ChevronDown, BookOpen } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, AlertTriangle, ChevronDown, BookOpen, Download } from 'lucide-react';
 import SessionForm from './SessionForm';
 
 interface PatientDetailProps {
@@ -57,6 +57,16 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     setExpandedSessions(newExpanded);
   };
 
+  const downloadPhoto = () => {
+    if (!patient.photo) return;
+    const link = document.createElement('a');
+    link.href = patient.photo;
+    link.download = `photo_${patient.lastName}_${patient.firstName}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const initiateDelete = () => {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     setSecurityCode(code);
@@ -87,11 +97,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
       {/* Profile Header */}
       <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-          <div className={`w-32 h-32 rounded-[2.5rem] border-2 ring-4 shrink-0 overflow-hidden flex items-center justify-center transition-all ${getGenderStyle(patient.gender)}`}>
-            {patient.photo ? (
-              <img src={patient.photo} alt={`${patient.firstName} ${patient.lastName}`} className="w-full h-full object-cover" />
-            ) : (
-              <User size={56} className="text-slate-200" />
+          <div className="relative group shrink-0">
+            <div className={`w-32 h-32 rounded-[2.5rem] border-2 ring-4 shrink-0 overflow-hidden flex items-center justify-center transition-all ${getGenderStyle(patient.gender)}`}>
+              {patient.photo ? (
+                <img src={patient.photo} alt={`${patient.firstName} ${patient.lastName}`} className="w-full h-full object-cover" />
+              ) : (
+                <User size={56} className="text-slate-200" />
+              )}
+            </div>
+            {patient.photo && (
+              <button 
+                onClick={downloadPhoto}
+                className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 rounded-[2.5rem] transition-all"
+                title="Télécharger la photo"
+              >
+                <Download size={24} />
+              </button>
             )}
           </div>
           
@@ -142,7 +163,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         </div>
       </div>
 
-      {/* Delete Confirmation Modal (Patient) */}
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
           <div className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100">

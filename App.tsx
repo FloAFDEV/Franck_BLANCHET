@@ -14,16 +14,19 @@ const App: React.FC = () => {
   const [practitioner, setPractitioner] = useState<Practitioner | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
+  const refreshPractitioner = async () => {
+    const p = await db.profile.get(1);
+    if (p) {
+      setPractitioner(p);
+    } else {
+      const defaultProfile = { id: 1, firstName: '', lastName: '', themeColor: '#14b8a6' };
+      await db.profile.put(defaultProfile);
+      setPractitioner(defaultProfile);
+    }
+  };
+
   useEffect(() => {
-    db.profile.get(1).then(p => {
-      if (p) {
-        setPractitioner(p);
-      } else {
-        const defaultProfile = { id: 1, firstName: '', lastName: '', themeColor: '#14b8a6' };
-        db.profile.put(defaultProfile);
-        setPractitioner(defaultProfile);
-      }
-    });
+    refreshPractitioner();
   }, [currentView]);
 
   const themeStyles = React.useMemo(() => {
@@ -42,7 +45,7 @@ const App: React.FC = () => {
   };
 
   const handleResetExpress = async () => {
-    if (confirm("ATTENTION : Cette action supprimera DÉFINITIVEMENT toutes les données. Continuer ?")) {
+    if (confirm("ATTENTION : Cette action supprimera DÉFINITIVEMENT toutes les données (patients, séances et profil). Continuer ?")) {
       await db.resetDatabase();
       window.location.reload();
     }
@@ -52,21 +55,27 @@ const App: React.FC = () => {
     try {
       const patients = await db.patients.toArray();
       const sessions = await db.sessions.toArray();
-      const profile = await db.profile.toArray();
+      const profile = await db.profile.toArray(); // On récupère tout le profil (table single-row)
       
       const dataToExport = {
-        version: "1.0",
-        practitioner: profile,
+        app: "OstéoSuivi",
+        version: "1.1",
+        exportDate: new Date().toISOString(),
+        practitioner: profile, // Inclusion du profil praticien
         patients: patients,
-        sessions: sessions,
-        exportDate: new Date().toISOString()
+        sessions: sessions
       };
 
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
+      
+      const fileName = practitioner?.lastName 
+        ? `sauvegarde_osteo_${practitioner.lastName.toUpperCase()}_${new Date().toISOString().split('T')[0]}.json`
+        : `sauvegarde_osteo_${new Date().toISOString().split('T')[0]}.json`;
+
       link.href = url;
-      link.download = `osteo_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -81,7 +90,7 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!confirm("Importer ces données écrasera votre base actuelle. Continuer ?")) {
+    if (!confirm("L'importation remplacera TOUTES vos données actuelles par celles du fichier. Voulez-vous continuer ?")) {
       e.target.value = '';
       return;
     }
@@ -91,23 +100,26 @@ const App: React.FC = () => {
       try {
         const json = JSON.parse(event.target?.result as string);
         
-        // Validation basique
         if (!json.patients || !json.sessions) {
-          throw new Error("Format de fichier invalide");
+          throw new Error("Format de fichier incompatible ou corrompu.");
         }
 
-        // Nettoyage et Import
+        // Nettoyage de la base existante
         await db.resetDatabase();
+
+        // Importation par lots
         if (json.patients.length > 0) await db.patients.bulkAdd(json.patients);
         if (json.sessions.length > 0) await db.sessions.bulkAdd(json.sessions);
+        
+        // Importation du profil praticien si présent
         if (json.practitioner && json.practitioner.length > 0) {
           await db.profile.bulkPut(json.practitioner);
         }
 
-        alert("Données importées avec succès !");
+        alert("Données et profil restaurés avec succès !");
         window.location.reload();
       } catch (error) {
-        alert("Erreur lors de l'importation : " + (error as Error).message);
+        alert("Échec de l'importation : " + (error as Error).message);
       }
     };
     reader.readAsText(file);
@@ -126,7 +138,6 @@ const App: React.FC = () => {
         .shadow-primary-soft { --tw-shadow-color: var(--primary-soft); }
       `}</style>
 
-      {/* Hidden file input for import */}
       <input 
         type="file" 
         ref={importFileRef} 
@@ -135,7 +146,6 @@ const App: React.FC = () => {
         className="hidden" 
       />
 
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           {currentView !== 'DASHBOARD' && (
@@ -174,21 +184,21 @@ const App: React.FC = () => {
               <button
                 onClick={() => importFileRef.current?.click()}
                 className="p-2 text-slate-300 hover:text-amber-500 transition-colors"
-                title="Importer des données (Restauration)"
+                title="Restaurer une sauvegarde"
               >
                 <Upload size={18} />
               </button>
               <button
                 onClick={handleExportData}
                 className="p-2 text-slate-300 hover:text-emerald-500 transition-colors"
-                title="Exporter les données (Sauvegarde)"
+                title="Créer une sauvegarde complète"
               >
                 <Download size={18} />
               </button>
               <button
                 onClick={handleResetExpress}
                 className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
-                title="Réinitialiser l'application"
+                title="Réinitialiser"
               >
                 <RefreshCcw size={18} />
               </button>
