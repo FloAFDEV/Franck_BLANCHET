@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../db';
 import { Practitioner } from '../types';
-import { Camera, Upload, X, Save, Check, UserCircle, Palette } from 'lucide-react';
+import { Camera, Upload, X, Save, Check, UserCircle, Palette, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 
 interface PractitionerProfileProps {
   onSuccess: () => void;
@@ -12,7 +12,9 @@ interface PractitionerProfileProps {
 const THEME_COLORS = [
   { name: 'Teal', value: '#14b8a6' },
   { name: 'Gris', value: '#475569' },
-  { name: 'Amber', value: '#f59e0b' }
+  { name: 'Amber', value: '#f59e0b' },
+  { name: 'Indigo', value: '#6366f1' },
+  { name: 'Rose', value: '#ec4899' }
 ];
 
 const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, onCancel }) => {
@@ -21,8 +23,10 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
     firstName: '',
     lastName: '',
     photo: '',
-    themeColor: '#14b8a6'
+    themeColor: '#14b8a6',
+    password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,7 +84,7 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
   };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-300">
       <div className="p-8 bg-primary text-white text-center">
         <h2 className="text-2xl font-black uppercase tracking-widest mb-1">Mon Profil</h2>
         <p className="text-white/70 text-xs font-bold uppercase tracking-tighter">Configuration de l'espace</p>
@@ -161,20 +165,46 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
           <div className="space-y-3">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 flex items-center gap-2">
+              <Lock size={14} className="text-primary" /> Sécurité de l'accès (Optionnel)
+            </label>
+            <div className="relative">
+              <input 
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Laisser vide pour désactiver le verrouillage"
+                className="w-full p-4 pr-12 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary focus:bg-white focus:outline-none font-bold text-slate-800"
+                value={formData.password || ''}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+            <p className="flex items-center gap-2 px-3 text-[9px] font-bold text-slate-400 uppercase leading-relaxed">
+              <AlertTriangle size={12} className="text-amber-500 shrink-0" />
+              Si vous oubliez ce mot de passe, vous ne pourrez plus accéder à vos données locales.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 flex items-center gap-2">
               <Palette size={14} className="text-primary" /> Couleur de l'interface
             </label>
-            <div className="flex gap-4 p-4 bg-slate-50 rounded-[2rem] border border-slate-100 w-fit">
+            <div className="flex flex-wrap gap-4 p-4 bg-slate-50 rounded-[2rem] border border-slate-100">
               {THEME_COLORS.map(color => (
                 <button
                   key={color.value}
                   type="button"
                   onClick={() => setFormData({...formData, themeColor: color.value})}
-                  className={`relative group w-8 h-8 rounded-xl transition-all ${formData.themeColor === color.value ? 'ring-2 ring-primary ring-offset-2 scale-110' : 'hover:scale-110 opacity-60'}`}
+                  className={`relative group w-10 h-10 rounded-xl transition-all ${formData.themeColor === color.value ? 'ring-2 ring-primary ring-offset-2 scale-110' : 'hover:scale-110 opacity-60'}`}
                   style={{ backgroundColor: color.value }}
                 >
                   {formData.themeColor === color.value && (
                     <div className="absolute inset-0 flex items-center justify-center text-white">
-                      <Check size={14} strokeWidth={4} />
+                      <Check size={18} strokeWidth={4} />
                     </div>
                   )}
                   <span className="sr-only">{color.name}</span>

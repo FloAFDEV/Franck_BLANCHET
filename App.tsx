@@ -6,10 +6,12 @@ import Dashboard from './components/Dashboard';
 import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
-import { Plus, ChevronLeft, UserCircle, RefreshCcw, Settings, Download, Upload } from 'lucide-react';
+import LoginView from './components/LoginView';
+import { Plus, ChevronLeft, UserCircle, RefreshCcw, Settings, Download, Upload, Lock } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
+  const [isLocked, setIsLocked] = useState<boolean>(true);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [practitioner, setPractitioner] = useState<Practitioner | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,16 +21,21 @@ const App: React.FC = () => {
     const p = await db.profile.get(1);
     if (p) {
       setPractitioner(p);
+      // Si pas de mot de passe, on déverrouille automatiquement
+      if (!p.password) {
+        setIsLocked(false);
+      }
     } else {
       const defaultProfile = { id: 1, firstName: '', lastName: '', themeColor: '#14b8a6' };
       await db.profile.put(defaultProfile);
       setPractitioner(defaultProfile);
+      setIsLocked(false);
     }
   };
 
   useEffect(() => {
     refreshPractitioner();
-  }, [currentView]);
+  }, []);
 
   const themeStyles = React.useMemo(() => {
     const color = practitioner?.themeColor || '#14b8a6';
@@ -61,7 +68,7 @@ const App: React.FC = () => {
       
       const dataToExport = {
         app: "OstéoSuivi",
-        version: "1.2",
+        version: "1.3",
         exportDate: new Date().toISOString(),
         practitioner: profiles,
         patients: patients,
@@ -103,12 +110,10 @@ const App: React.FC = () => {
       try {
         const json = JSON.parse(event.target?.result as string);
         
-        // Validation basique du format
         if (!json.patients || !json.sessions || !json.practitioner) {
           throw new Error("Le fichier de sauvegarde semble incomplet ou incompatible.");
         }
 
-        // Nettoyage et Importation
         await db.transaction('rw', db.patients, db.sessions, db.profile, async () => {
           await db.patients.clear();
           await db.sessions.clear();
@@ -130,6 +135,23 @@ const App: React.FC = () => {
     };
     reader.readAsText(file);
   };
+
+  // Si l'app est verrouillée, on affiche uniquement la vue Login
+  if (isLocked && practitioner?.password) {
+    return (
+      <div style={themeStyles} className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <style>{`
+          .bg-primary { background-color: var(--primary); }
+          .text-primary { color: var(--primary); }
+          .shadow-primary-soft { --tw-shadow-color: var(--primary-soft); }
+        `}</style>
+        <LoginView 
+          practitioner={practitioner} 
+          onUnlock={() => setIsLocked(false)} 
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={themeStyles} className={`max-w-4xl mx-auto min-h-screen flex flex-col bg-slate-50 font-sans ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}>
@@ -222,6 +244,15 @@ const App: React.FC = () => {
                 <span className="hidden sm:inline text-xs uppercase tracking-widest">Nouveau Patient</span>
               </button>
             </>
+          )}
+          {practitioner?.password && (
+            <button 
+              onClick={() => setIsLocked(true)}
+              className="p-2 text-slate-300 hover:text-primary transition-colors"
+              title="Verrouiller"
+            >
+              <Lock size={18} />
+            </button>
           )}
         </div>
       </header>
