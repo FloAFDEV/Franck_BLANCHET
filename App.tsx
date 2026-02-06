@@ -70,7 +70,7 @@ const App: React.FC = () => {
     let color = practitioner?.themeColor || '#14b8a6';
     const isDark = practitioner?.isDarkMode;
     
-    // Si orange, on force amber-500
+    // Thème Orange : Utilisation forcée de amber-500
     if (color === '#f59e0b' || color === 'orange') color = '#f59e0b';
 
     const lighten = (hex: string, percent: number) => {
@@ -82,8 +82,9 @@ const App: React.FC = () => {
       return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
     };
 
-    // Ajustement pour le contraste en mode sombre sur le thème gris
-    const textColor = (isDark && (color === '#64748b' || color === '#475569')) ? lighten(color, 50) : color;
+    // Ajustement des contrastes pour les thèmes grisâtres en mode sombre
+    const isGrayish = color === '#64748b' || color === '#475569';
+    const textColor = (isDark && isGrayish) ? lighten(color, 60) : color;
 
     return {
       '--primary': color,
@@ -125,13 +126,13 @@ const App: React.FC = () => {
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !confirm("L'importation va remplacer toutes les données locales. Continuer ?")) return;
+    if (!file || !confirm("Écraser les données locales par cet import ?")) return;
     setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        if (data.app !== "OstéoSuivi") throw new Error("Format invalide");
+        if (data.app !== "OstéoSuivi") throw new Error("Format de sauvegarde invalide");
         await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
           await db.patients.clear(); await db.sessions.clear(); await db.profile.clear(); await db.media_metadata.clear();
           if (data.patients) await db.patients.bulkAdd(data.patients);
@@ -162,7 +163,7 @@ const App: React.FC = () => {
         .text-primary { color: var(--primary-text); }
         .border-primary { border-color: var(--primary); }
         .bg-primary-soft { background-color: var(--primary-soft); }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
         .dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
       `}</style>
 
@@ -186,7 +187,7 @@ const App: React.FC = () => {
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">Base locale</span>
+                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">Stockage local</span>
                 <div className="flex items-center gap-1 text-[10px] font-semibold text-primary/80">
                   <HardDrive size={10} /> {usagePercent}%
                 </div>
