@@ -7,7 +7,7 @@ import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
 import LoginView from './components/LoginView';
-import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2, AlertTriangle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
@@ -16,15 +16,40 @@ const App: React.FC = () => {
   const [practitioner, setPractitioner] = useState<Practitioner | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ used: number, total: number } | null>(null);
+  const [isBackupDue, setIsBackupDue] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
+
+  const checkBackupStatus = async (p: Practitioner) => {
+    const patientCount = await db.patients.count();
+    const sessionCount = await db.sessions.count();
+    const currentTotalRecords = patientCount + sessionCount;
+
+    const lastDate = p.lastExportDate || 0;
+    const lastCount = p.lastExportRecordCount || 0;
+
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+    const timeDue = Date.now() - lastDate > sevenDaysInMs;
+    const volumeDue = currentTotalRecords - lastCount >= 20;
+
+    setIsBackupDue(timeDue || volumeDue);
+  };
 
   const refreshPractitioner = async () => {
     const p = await db.profile.get(1);
     if (p) {
       setPractitioner(p);
       if (!p.password) setIsLocked(false);
+      checkBackupStatus(p);
     } else {
-      const defaultProfile = { id: 1, firstName: '', lastName: '', themeColor: '#14b8a6', isDarkMode: false };
+      const defaultProfile: Practitioner = { 
+        id: 1, 
+        firstName: '', 
+        lastName: '', 
+        themeColor: '#14b8a6', 
+        isDarkMode: false,
+        lastExportDate: Date.now(),
+        lastExportRecordCount: 0
+      };
       await db.profile.put(defaultProfile);
       setPractitioner(defaultProfile);
       setIsLocked(false);
@@ -97,6 +122,18 @@ const App: React.FC = () => {
       link.download = `osteosuivi_backup_${new Date().toISOString().split('T')[0]}.json`;
       link.click();
       URL.revokeObjectURL(url);
+
+      // Mise à jour des métadonnées de sauvegarde
+      if (practitioner) {
+        const updatedProfile = { 
+          ...practitioner, 
+          lastExportDate: Date.now(), 
+          lastExportRecordCount: patients.length + sessions.length 
+        };
+        await db.profile.put(updatedProfile);
+        setPractitioner(updatedProfile);
+        setIsBackupDue(false);
+      }
     } catch (error) {
       alert("Erreur lors de l'exportation : " + error);
     } finally {
@@ -138,8 +175,6 @@ const App: React.FC = () => {
           if (data.sessions) await db.sessions.bulkAdd(data.sessions);
           if (data.practitioner) await db.profile.bulkPut(data.practitioner);
           if (data.mediaMeta) await db.media_metadata.bulkAdd(data.mediaMeta);
-          // Note: Les blobs d'images ne sont généralement pas dans le JSON à cause de leur taille, 
-          // sauf s'ils ont été encodés en base64, ce qui n'est pas recommandé pour IndexedDB.
         });
 
         alert("Importation réussie ! L'application va redémarrer.");
@@ -181,7 +216,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-primary" size={40} />
-            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 text-center">Restauration des données...</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 text-center">Traitement en cours...</p>
           </div>
         </div>
       )}
@@ -214,7 +249,14 @@ const App: React.FC = () => {
             <>
               <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
               <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde JSON"><Upload size={18} /></button>
-              <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter les données actuelles"><Download size={18} /></button>
+              <div className="relative">
+                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter les données actuelles">
+                  <Download size={18} />
+                </button>
+                {isBackupDue && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
+                )}
+              </div>
               <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres du profil"><Settings size={18} /></button>
             </>
           )}
@@ -222,10 +264,17 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
-        {currentView === 'DASHBOARD' && <Dashboard onSelectPatient={(id) => navigateTo('PATIENT_DETAIL', id)} />}
-        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => { updateStorageEstimate(); navigateTo('DASHBOARD'); }} />}
-        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => { updateStorageEstimate(); navigateTo('PATIENT_DETAIL', selectedPatientId); }} />}
-        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => { updateStorageEstimate(); navigateTo('DASHBOARD'); }} />}
+        {currentView === 'DASHBOARD' && (
+          <Dashboard 
+            onSelectPatient={(id) => navigateTo('PATIENT_DETAIL', id)} 
+            isBackupDue={isBackupDue} 
+            lastExportDate={practitioner?.lastExportDate}
+            onExportRequest={handleExportData}
+          />
+        )}
+        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => { updateStorageEstimate(); refreshPractitioner(); navigateTo('DASHBOARD'); }} />}
+        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => { updateStorageEstimate(); refreshPractitioner(); navigateTo('PATIENT_DETAIL', selectedPatientId); }} />}
+        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => { updateStorageEstimate(); refreshPractitioner(); navigateTo('DASHBOARD'); }} />}
         {currentView === 'PRACTITIONER_PROFILE' && <PractitionerProfile onSuccess={() => { refreshPractitioner(); navigateTo('DASHBOARD'); }} onCancel={() => navigateTo('DASHBOARD')} />}
       </main>
 

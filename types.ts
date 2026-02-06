@@ -51,6 +51,8 @@ export interface Practitioner {
   themeColor: string; 
   password?: string;
   isDarkMode?: boolean;
+  lastExportDate?: number; // Timestamp de la dernière sauvegarde
+  lastExportRecordCount?: number; // Somme patients + séances lors de la dernière sauvegarde
 }
 
 export type View = 'DASHBOARD' | 'ADD_PATIENT' | 'EDIT_PATIENT' | 'PATIENT_DETAIL' | 'PRACTITIONER_PROFILE' | 'LOGIN';

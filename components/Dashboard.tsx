@@ -2,11 +2,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Gender } from '../types';
-import { Search, User, SortAsc, SortDesc, UserRoundSearch, X, Filter, Users } from 'lucide-react';
+import { Search, User, SortAsc, SortDesc, UserRoundSearch, X, Filter, Users, AlertTriangle, Download } from 'lucide-react';
 import { getImageUrl, revokeUrl } from '../services/imageService';
 
 interface DashboardProps {
   onSelectPatient: (id: number) => void;
+  isBackupDue?: boolean;
+  lastExportDate?: number;
+  onExportRequest?: () => void;
 }
 
 const getAge = (birthDate: string) => {
@@ -75,7 +78,7 @@ const PatientCard: React.FC<{
   );
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, lastExportDate, onExportRequest }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -105,8 +108,37 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient }) => {
       });
   }, [patients, search, genderFilter, sortOrder]);
 
+  const daysSinceBackup = lastExportDate 
+    ? Math.floor((Date.now() - lastExportDate) / (1000 * 60 * 60 * 24)) 
+    : null;
+
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Backup Alert Banner */}
+      {isBackupDue && (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-200 dark:border-amber-900/50 p-4 sm:p-5 rounded-[2rem] flex flex-col sm:flex-row items-center gap-4 animate-in slide-in-from-top duration-500">
+          <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-amber-500/20">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="flex-1 text-center sm:text-left">
+            <h4 className="text-xs font-black text-amber-800 dark:text-amber-400 uppercase tracking-widest mb-1">Sauvegarde recommandée</h4>
+            <p className="text-[10px] sm:text-xs font-bold text-amber-700 dark:text-amber-500/80">
+              {daysSinceBackup !== null 
+                ? `Dernier export il y a ${daysSinceBackup} jour${daysSinceBackup > 1 ? 's' : ''}. `
+                : "Aucune sauvegarde détectée. "
+              }
+              Pensez à sécuriser vos données locales sur un support externe.
+            </p>
+          </div>
+          <button 
+            onClick={onExportRequest}
+            className="px-6 py-3 bg-white dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all flex items-center gap-2 shadow-sm"
+          >
+            <Download size={14} /> Sauvegarder
+          </button>
+        </div>
+      )}
+
       {/* Search & Filter Header */}
       <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm space-y-4 sticky top-[72px] sm:top-[88px] z-20 backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
         <div className="flex flex-col sm:flex-row gap-4">
