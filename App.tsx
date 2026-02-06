@@ -7,7 +7,7 @@ import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
 import LoginView from './components/LoginView';
-import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
@@ -23,15 +23,10 @@ const App: React.FC = () => {
     const patientCount = await db.patients.count();
     const sessionCount = await db.sessions.count();
     const currentTotalRecords = patientCount + sessionCount;
-
     const lastDate = p.lastExportDate || 0;
     const lastCount = p.lastExportRecordCount || 0;
-
     const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
-    const timeDue = Date.now() - lastDate > sevenDaysInMs;
-    const volumeDue = currentTotalRecords - lastCount >= 20;
-
-    setIsBackupDue(timeDue || volumeDue);
+    setIsBackupDue((Date.now() - lastDate > sevenDaysInMs) || (currentTotalRecords - lastCount >= 20));
   };
 
   const refreshPractitioner = async () => {
@@ -42,13 +37,8 @@ const App: React.FC = () => {
       checkBackupStatus(p);
     } else {
       const defaultProfile: Practitioner = { 
-        id: 1, 
-        firstName: '', 
-        lastName: '', 
-        themeColor: '#14b8a6', 
-        isDarkMode: false,
-        lastExportDate: Date.now(),
-        lastExportRecordCount: 0
+        id: 1, firstName: '', lastName: '', themeColor: '#14b8a6', isDarkMode: false,
+        lastExportDate: Date.now(), lastExportRecordCount: 0
       };
       await db.profile.put(defaultProfile);
       setPractitioner(defaultProfile);
@@ -59,13 +49,7 @@ const App: React.FC = () => {
   const updateStorageEstimate = async () => {
     if (navigator.storage && navigator.storage.estimate) {
       const estimate = await navigator.storage.estimate();
-      setStorageUsage({
-        used: estimate.usage || 0,
-        total: estimate.quota || 0
-      });
-    }
-    if (navigator.storage && navigator.storage.persist) {
-      await navigator.storage.persist();
+      setStorageUsage({ used: estimate.usage || 0, total: estimate.quota || 0 });
     }
   };
 
@@ -86,7 +70,9 @@ const App: React.FC = () => {
     let color = practitioner?.themeColor || '#14b8a6';
     const isDark = practitioner?.isDarkMode;
     
-    // Fonction simple pour éclaircir une couleur hex pour le mode sombre
+    // Si orange, on force amber-500
+    if (color === '#f59e0b' || color === 'orange') color = '#f59e0b';
+
     const lighten = (hex: string, percent: number) => {
       const num = parseInt(hex.replace("#",""), 16),
       amt = Math.round(2.55 * percent),
@@ -96,9 +82,8 @@ const App: React.FC = () => {
       return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
     };
 
-    // Si on est en mode sombre et que le thème est gris (#475569 ou proche), 
-    // on éclaircit la version "texte" pour l'accessibilité
-    const textColor = (isDark && (color === '#475569' || color === '#64748b')) ? lighten(color, 40) : color;
+    // Ajustement pour le contraste en mode sombre sur le thème gris
+    const textColor = (isDark && (color === '#64748b' || color === '#475569')) ? lighten(color, 50) : color;
 
     return {
       '--primary': color,
@@ -121,90 +106,41 @@ const App: React.FC = () => {
       const sessions = await db.sessions.toArray();
       const profiles = await db.profile.toArray();
       const mediaMeta = await db.media_metadata.toArray();
-      
-      const dataToExport = { 
-        app: "OstéoSuivi", 
-        version: "3.0",
-        exportDate: new Date().toISOString(),
-        practitioner: profiles, 
-        patients, 
-        sessions,
-        mediaMeta
-      };
-      
+      const dataToExport = { app: "OstéoSuivi", version: "3.5", exportDate: new Date().toISOString(), practitioner: profiles, patients, sessions, mediaMeta };
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `osteosuivi_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
       link.click();
       URL.revokeObjectURL(url);
-
       if (practitioner) {
-        const updatedProfile = { 
-          ...practitioner, 
-          lastExportDate: Date.now(), 
-          lastExportRecordCount: patients.length + sessions.length 
-        };
-        await db.profile.put(updatedProfile);
-        setPractitioner(updatedProfile);
+        const updated = { ...practitioner, lastExportDate: Date.now(), lastExportRecordCount: patients.length + sessions.length };
+        await db.profile.put(updated);
+        setPractitioner(updated);
         setIsBackupDue(false);
       }
-    } catch (error) {
-      alert("Erreur lors de l'exportation : " + error);
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (error) { alert("Erreur export: " + error); } finally { setIsProcessing(false); }
   };
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    const confirmMessage = "ATTENTION : L'importation va EFFACER TOUTES VOS DONNÉES ACTUELLES (patients, séances, photos) pour les remplacer par celles du fichier.\n\nCette action est irréversible. Souhaitez-vous continuer ?";
-    
-    if (!confirm(confirmMessage)) {
-      e.target.value = '';
-      return;
-    }
-
+    if (!file || !confirm("L'importation va remplacer toutes les données locales. Continuer ?")) return;
     setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const content = event.target?.result as string;
-        const data = JSON.parse(content);
-        
-        if (data.app !== "OstéoSuivi") {
-          throw new Error("Ce fichier n'est pas un format de sauvegarde OstéoSuivi valide.");
-        }
-
-        await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata, db.media_blobs, db.thumbnails], async () => {
-          await db.patients.clear();
-          await db.sessions.clear();
-          await db.profile.clear();
-          await db.media_metadata.clear();
-          await db.media_blobs.clear();
-          await db.thumbnails.clear();
-
+        const data = JSON.parse(event.target?.result as string);
+        if (data.app !== "OstéoSuivi") throw new Error("Format invalide");
+        await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
+          await db.patients.clear(); await db.sessions.clear(); await db.profile.clear(); await db.media_metadata.clear();
           if (data.patients) await db.patients.bulkAdd(data.patients);
           if (data.sessions) await db.sessions.bulkAdd(data.sessions);
           if (data.practitioner) await db.profile.bulkPut(data.practitioner);
           if (data.mediaMeta) await db.media_metadata.bulkAdd(data.mediaMeta);
         });
-
-        alert("Importation réussie ! L'application va redémarrer.");
         window.location.reload();
-      } catch (err) {
-        alert("Erreur lors de l'importation : " + (err as Error).message);
-      } finally {
-        setIsProcessing(false);
-        if (importFileRef.current) importFileRef.current.value = '';
-      }
-    };
-    reader.onerror = () => {
-      alert("Le fichier n'a pas pu être lu.");
-      setIsProcessing(false);
+      } catch (err) { alert("Erreur import: " + (err as Error).message); } finally { setIsProcessing(false); }
     };
     reader.readAsText(file);
   };
@@ -213,67 +149,61 @@ const App: React.FC = () => {
 
   if (isLocked && practitioner?.password) {
     return (
-      <div style={themeStyles} className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-4">
+      <div style={themeStyles} className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
         <LoginView practitioner={practitioner} onUnlock={() => setIsLocked(false)} />
       </div>
     );
   }
 
   return (
-    <div style={themeStyles} className={`mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200 ${isProcessing ? 'pointer-events-none' : ''}`}>
+    <div style={themeStyles} className="mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
       <style>{`
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary-text); }
         .border-primary { border-color: var(--primary); }
         .bg-primary-soft { background-color: var(--primary-soft); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
       `}</style>
 
       {isProcessing && (
         <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center gap-4">
-            <Loader2 className="animate-spin text-primary" size={40} />
-            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 text-center">Traitement en cours...</p>
-          </div>
+          <Loader2 className="animate-spin text-primary" size={32} />
         </div>
       )}
 
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2 sm:gap-4">
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-3">
           {currentView !== 'DASHBOARD' && (
-            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-500">
+            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
               <ChevronLeft size={20} />
             </button>
           )}
-          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-xl overflow-hidden flex items-center justify-center text-white shadow-sm">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
+            <div className="w-9 h-9 bg-primary rounded-lg overflow-hidden flex items-center justify-center text-white">
               {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={24} />}
             </div>
             <div className="flex flex-col">
-              <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">Local-DB</span>
-                <div className="flex items-center gap-1 text-[8px] font-black text-primary leading-none">
-                  <HardDrive size={8} /> {usagePercent}%
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">Base locale</span>
+                <div className="flex items-center gap-1 text-[10px] font-semibold text-primary/80">
+                  <HardDrive size={10} /> {usagePercent}%
                 </div>
               </div>
             </div>
           </div>
         </div>
-        
-        <div className="flex items-center gap-1 sm:gap-2">
+        <div className="flex items-center gap-1">
           {currentView === 'DASHBOARD' && (
             <>
               <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
-              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde JSON"><Upload size={18} /></button>
+              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary" title="Importer"><Upload size={18} /></button>
               <div className="relative">
-                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter les données actuelles">
-                  <Download size={18} />
-                </button>
-                {isBackupDue && (
-                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
-                )}
+                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary" title="Exporter"><Download size={18} /></button>
+                {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />}
               </div>
-              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres du profil"><Settings size={18} /></button>
+              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary" title="Profil"><Settings size={18} /></button>
             </>
           )}
         </div>
@@ -282,32 +212,21 @@ const App: React.FC = () => {
       <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
         {currentView === 'DASHBOARD' && (
           <Dashboard 
-            onSelectPatient={(id) => navigateTo('PATIENT_DETAIL', id)} 
+            onSelectPatient={(id) => id === -1 ? navigateTo('ADD_PATIENT') : navigateTo('PATIENT_DETAIL', id)} 
             isBackupDue={isBackupDue} 
-            lastExportDate={practitioner?.lastExportDate}
-            onExportRequest={handleExportData}
+            onExportRequest={handleExportData} 
           />
         )}
-        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => { updateStorageEstimate(); refreshPractitioner(); navigateTo('DASHBOARD'); }} />}
-        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => { updateStorageEstimate(); refreshPractitioner(); navigateTo('PATIENT_DETAIL', selectedPatientId); }} />}
-        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => { updateStorageEstimate(); refreshPractitioner(); navigateTo('DASHBOARD'); }} />}
+        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => navigateTo('DASHBOARD')} />}
+        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} />}
+        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => navigateTo('DASHBOARD')} />}
         {currentView === 'PRACTITIONER_PROFILE' && <PractitionerProfile onSuccess={() => { refreshPractitioner(); navigateTo('DASHBOARD'); }} onCancel={() => navigateTo('DASHBOARD')} />}
       </main>
 
       {currentView === 'DASHBOARD' && (
-        <div className="fixed bottom-6 right-6 z-40 sm:hidden">
-          <button onClick={() => navigateTo('ADD_PATIENT')} className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/40 active:scale-90 transition-transform">
-            <Plus size={28} />
-          </button>
-        </div>
-      )}
-      
-      {currentView === 'DASHBOARD' && (
-        <div className="hidden sm:block fixed bottom-8 right-8">
-           <button onClick={() => navigateTo('ADD_PATIENT')} className="bg-primary text-white px-6 py-3 rounded-2xl flex items-center gap-3 text-sm font-black uppercase tracking-widest hover:brightness-110 shadow-xl shadow-primary/20 transition-all active:scale-95">
-            <Plus size={20} /> Nouveau Patient
-          </button>
-        </div>
+        <button onClick={() => navigateTo('ADD_PATIENT')} className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all sm:hidden">
+          <Plus size={24} />
+        </button>
       )}
     </div>
   );
