@@ -1,4 +1,3 @@
-
 import { Dexie, Table } from 'dexie';
 import { Patient, Session, Practitioner } from './types';
 
@@ -12,6 +11,7 @@ export class OsteoDB extends Dexie {
     super('OsteoSuiviDB');
     // Define the database schema. The versioning allows for future schema migrations.
     // We use the .version() method inherited from the Dexie base class.
+    // Fix: Using the named import for Dexie ensures the 'version' method is properly inherited and recognized.
     this.version(2).stores({
       patients: '++id, lastName, firstName, gender',
       sessions: '++id, patientId, date',

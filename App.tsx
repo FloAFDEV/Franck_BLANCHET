@@ -1,17 +1,18 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from './db';
 import { View, Practitioner } from './types';
 import Dashboard from './components/Dashboard';
 import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
-import { Plus, ChevronLeft, UserCircle, RefreshCcw, Settings, Download } from 'lucide-react';
+import { Plus, ChevronLeft, UserCircle, RefreshCcw, Settings, Download, Upload } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [practitioner, setPractitioner] = useState<Practitioner | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     db.profile.get(1).then(p => {
@@ -76,6 +77,43 @@ const App: React.FC = () => {
     }
   };
 
+  const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm("Importer ces données écrasera votre base actuelle. Continuer ?")) {
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        
+        // Validation basique
+        if (!json.patients || !json.sessions) {
+          throw new Error("Format de fichier invalide");
+        }
+
+        // Nettoyage et Import
+        await db.resetDatabase();
+        if (json.patients.length > 0) await db.patients.bulkAdd(json.patients);
+        if (json.sessions.length > 0) await db.sessions.bulkAdd(json.sessions);
+        if (json.practitioner && json.practitioner.length > 0) {
+          await db.profile.bulkPut(json.practitioner);
+        }
+
+        alert("Données importées avec succès !");
+        window.location.reload();
+      } catch (error) {
+        alert("Erreur lors de l'importation : " + (error as Error).message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   return (
     <div style={themeStyles} className="max-w-4xl mx-auto min-h-screen flex flex-col bg-slate-50 font-sans">
       <style>{`
@@ -87,6 +125,15 @@ const App: React.FC = () => {
         .border-primary-soft { border-color: var(--primary-border); }
         .shadow-primary-soft { --tw-shadow-color: var(--primary-soft); }
       `}</style>
+
+      {/* Hidden file input for import */}
+      <input 
+        type="file" 
+        ref={importFileRef} 
+        onChange={handleImportData} 
+        accept=".json" 
+        className="hidden" 
+      />
 
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
@@ -125,9 +172,16 @@ const App: React.FC = () => {
           {currentView === 'DASHBOARD' && (
             <>
               <button
+                onClick={() => importFileRef.current?.click()}
+                className="p-2 text-slate-300 hover:text-amber-500 transition-colors"
+                title="Importer des données (Restauration)"
+              >
+                <Upload size={18} />
+              </button>
+              <button
                 onClick={handleExportData}
                 className="p-2 text-slate-300 hover:text-emerald-500 transition-colors"
-                title="Exporter les données (JSON)"
+                title="Exporter les données (Sauvegarde)"
               >
                 <Download size={18} />
               </button>

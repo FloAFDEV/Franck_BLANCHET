@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, AlertTriangle, X, ChevronDown, ChevronUp, SortAsc, SortDesc } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, AlertTriangle, ChevronDown, ChevronUp, SortAsc, SortDesc, BookOpen } from 'lucide-react';
 import SessionForm from './SessionForm';
 
 interface PatientDetailProps {
@@ -83,7 +83,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
 
   const deleteSession = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (confirm('Supprimer ce compte-rendu ?')) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer définitivement ce compte-rendu de séance ?')) {
       await db.sessions.delete(id);
       fetchData();
     }
@@ -96,7 +96,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
           <div className={`w-32 h-32 rounded-[2.5rem] border-2 ring-4 shrink-0 overflow-hidden flex items-center justify-center transition-all ${getGenderStyle(patient.gender)}`}>
             {patient.photo ? (
-              <img src={patient.photo} className="w-full h-full object-cover" />
+              <img src={patient.photo} alt={`${patient.firstName} ${patient.lastName}`} className="w-full h-full object-cover" />
             ) : (
               <User size={56} className="text-slate-200" />
             )}
@@ -151,7 +151,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (Patient) */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
           <div className="bg-white rounded-[3rem] p-10 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100">
@@ -161,10 +161,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
               </div>
             </div>
             <h3 className="text-xl font-black text-slate-900 text-center mb-2 uppercase tracking-tighter">Supprimer le dossier ?</h3>
-            <p className="text-slate-400 text-xs text-center mb-8 px-2 font-bold uppercase tracking-widest leading-relaxed">
+            <div className="text-slate-400 text-xs text-center mb-8 px-2 font-bold uppercase tracking-widest leading-relaxed">
               Action irréversible. Entrez le code de sécurité :
               <div className="mt-4 font-black text-rose-600 text-4xl tracking-[0.2em] bg-rose-50 py-4 rounded-3xl border border-rose-100">{securityCode}</div>
-            </p>
+            </div>
             <input 
               type="text"
               inputMode="numeric"
@@ -197,7 +197,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
       <div className="space-y-4">
         <div className="flex items-center justify-between px-4">
           <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] flex items-center gap-2">
-            Comptes-rendus <span className="bg-slate-200 text-slate-500 px-3 py-1 rounded-full text-[9px]">{sessions.length}</span>
+            Historique <span className="bg-slate-200 text-slate-500 px-3 py-1 rounded-full text-[9px]">{sessions.length}</span>
           </h3>
           
           <div className="flex items-center gap-2">
@@ -229,66 +229,78 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           />
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {sessions.length > 0 ? (
             sessions.map(session => {
               const isExpanded = expandedSessions.has(session.id!);
               return (
                 <div 
                   key={session.id} 
-                  className={`bg-white rounded-[2rem] border transition-all ${isExpanded ? 'border-primary shadow-2xl shadow-primary-soft border-2' : 'border-slate-200 shadow-sm'}`}
+                  className={`bg-white rounded-[2rem] border transition-all duration-300 ${isExpanded ? 'border-primary ring-4 ring-primary-soft shadow-2xl shadow-primary-soft/20' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}
                 >
                   <div 
                     onClick={() => toggleSession(session.id!)}
-                    className="px-8 py-6 flex items-center justify-between cursor-pointer select-none"
+                    className="px-6 py-5 flex items-center justify-between cursor-pointer select-none"
                   >
-                    <div className="flex items-center gap-5">
-                      <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center transition-colors ${isExpanded ? 'bg-primary text-white shadow-lg shadow-primary-soft' : 'bg-slate-50 text-slate-400'}`}>
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-primary text-white shadow-lg shadow-primary-soft' : 'bg-slate-50 text-slate-400'}`}>
                         <Calendar size={20} />
                       </div>
-                      <div>
-                        <span className="font-black text-slate-800 uppercase text-sm tracking-tight">
+                      <div className="flex-1 min-w-0">
+                        <span className="font-black text-slate-800 uppercase text-xs tracking-tight block">
                           {new Date(session.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </span>
                         {!isExpanded && session.hdlm && (
-                          <p className="text-[10px] text-slate-400 truncate max-w-[150px] sm:max-w-xs mt-1 font-bold uppercase tracking-tighter opacity-60">
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5 font-bold uppercase tracking-tighter opacity-60">
                             {session.hdlm}
                           </p>
+                        )}
+                        {isExpanded && (
+                           <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 block">Détails de la séance</span>
                         )}
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4">
                       <button 
                         onClick={(e) => deleteSession(e, session.id!)}
-                        className="p-3 text-slate-200 hover:text-rose-400 transition-colors"
+                        className="p-3 text-slate-200 hover:text-rose-400 hover:bg-rose-50 rounded-xl transition-all"
+                        title="Supprimer cette séance"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
-                      <div className="text-primary opacity-40">
-                        {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+                      <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180 text-primary' : 'text-slate-300'}`}>
+                        <ChevronDown size={20} />
                       </div>
                     </div>
                   </div>
                   
                   {isExpanded && (
-                    <div className="px-8 pb-8 pt-2 animate-in slide-in-from-top-4 duration-300">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-primary uppercase tracking-[0.2em] px-3">Motif (HDLM)</label>
-                          <div className="bg-slate-50 p-5 rounded-[1.5rem] border border-slate-100 text-slate-700 text-sm font-medium leading-relaxed">{session.hdlm || 'N/A'}</div>
+                    <div className="px-6 pb-8 pt-2 animate-in slide-in-from-top-4 duration-300">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] px-3 flex items-center gap-1.5">
+                            <BookOpen size={10} className="text-primary" /> Motif / HDLM
+                          </label>
+                          <div className="bg-slate-50 p-4 rounded-[1.25rem] border border-slate-100 text-slate-700 text-xs font-medium leading-relaxed whitespace-pre-wrap">{session.hdlm || 'Non renseigné'}</div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-primary uppercase tracking-[0.2em] px-3">Tests & Diagnostics</label>
-                          <div className="bg-slate-50 p-5 rounded-[1.5rem] border border-slate-100 text-slate-700 text-sm font-medium leading-relaxed">{session.tests || 'N/A'}</div>
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] px-3 flex items-center gap-1.5">
+                            <History size={10} className="text-primary" /> Tests & Diagnostics
+                          </label>
+                          <div className="bg-slate-50 p-4 rounded-[1.25rem] border border-slate-100 text-slate-700 text-xs font-medium leading-relaxed whitespace-pre-wrap">{session.tests || 'Non renseigné'}</div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-primary uppercase tracking-[0.2em] px-3">Traitement effectué</label>
-                          <div className="bg-slate-50 p-5 rounded-[1.5rem] border border-slate-100 text-slate-700 text-sm font-medium leading-relaxed">{session.treatment || 'N/A'}</div>
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] px-3 flex items-center gap-1.5">
+                            <Plus size={10} className="text-primary" /> Traitement
+                          </label>
+                          <div className="bg-slate-50 p-4 rounded-[1.25rem] border border-slate-100 text-slate-700 text-xs font-medium leading-relaxed whitespace-pre-wrap">{session.treatment || 'Non renseigné'}</div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-[9px] font-black text-primary uppercase tracking-[0.2em] px-3">Conseils prodigués</label>
-                          <div className="bg-slate-50 p-5 rounded-[1.5rem] border border-slate-100 text-slate-700 text-sm font-medium leading-relaxed">{session.advice || 'N/A'}</div>
+                        <div className="space-y-1.5">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] px-3 flex items-center gap-1.5">
+                            <Edit3 size={10} className="text-primary" /> Conseils & Exercices
+                          </label>
+                          <div className="bg-slate-50 p-4 rounded-[1.25rem] border border-slate-100 text-slate-700 text-xs font-medium leading-relaxed whitespace-pre-wrap">{session.advice || 'Aucun conseil spécifique'}</div>
                         </div>
                       </div>
                     </div>
@@ -298,7 +310,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             })
           ) : !isAddingSession && (
             <div className="text-center py-20 bg-white rounded-[3rem] border-4 border-dashed border-slate-50 text-slate-300 italic font-black uppercase tracking-widest text-[10px] opacity-50">
-              Aucun historique de soin.
+              Aucun historique de soin disponible.
             </div>
           )}
         </div>

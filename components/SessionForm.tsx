@@ -12,7 +12,7 @@ interface SessionFormProps {
 
 const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSuccess }) => {
   const [formData, setFormData] = useState<Partial<Session>>({
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0], // Pré-rempli avec aujourd'hui
     hdlm: '',
     tests: '',
     treatment: '',
@@ -40,9 +40,9 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
         <div className="space-y-1">
           <h3 className="font-black text-xl text-slate-900 uppercase tracking-tighter flex items-center gap-2">
             <ClipboardList className="text-primary" size={24} />
-            Nouvelle Séance
+            Nouveau Compte-rendu
           </h3>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Saisie du compte-rendu clinique</p>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Saisie clinique de la séance</p>
         </div>
         <button onClick={onCancel} className="p-3 text-slate-300 hover:text-slate-500 hover:bg-slate-100 rounded-2xl transition-all">
           <X size={24} />
@@ -50,9 +50,10 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Champ Date - Permet de choisir une date passée */}
         <div className="space-y-2">
           <label className="text-[10px] font-black uppercase tracking-widest text-primary px-2 flex items-center gap-2">
-            <Calendar size={12} /> Date du soin
+            <Calendar size={12} /> Date de la séance
           </label>
           <input 
             required
@@ -61,6 +62,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
             value={formData.date}
             onChange={(e) => setFormData({...formData, date: e.target.value})}
           />
+          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight px-2 italic">Par défaut à aujourd'hui, modifiable si séance antérieure.</p>
         </div>
 
         <div className="space-y-2">
@@ -70,7 +72,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
           <textarea 
             required
             rows={2}
-            placeholder="Description des symptômes et motif de consultation..."
+            placeholder="Description des symptômes, motif de consultation, histoire de la maladie..."
             className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
             value={formData.hdlm}
             onChange={(e) => setFormData({...formData, hdlm: e.target.value})}
@@ -84,7 +86,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
             </label>
             <textarea 
               rows={3}
-              placeholder="Constats cliniques, tests ostéopathiques..."
+              placeholder="Constats cliniques, tests ostéopathiques, exclusions..."
               className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
               value={formData.tests}
               onChange={(e) => setFormData({...formData, tests: e.target.value})}
@@ -96,7 +98,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
             </label>
             <textarea 
               rows={3}
-              placeholder="Techniques utilisées (structurel, fascia, viscéral...)"
+              placeholder="Techniques utilisées (structurel, fascia, viscéral, crânien...)"
               className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
               value={formData.treatment}
               onChange={(e) => setFormData({...formData, treatment: e.target.value})}
@@ -110,7 +112,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
           </label>
           <textarea 
             rows={2}
-            placeholder="Recommandations post-séance et exercices à domicile..."
+            placeholder="Recommandations d'hygiène de vie, exercices à domicile..."
             className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
             value={formData.advice}
             onChange={(e) => setFormData({...formData, advice: e.target.value})}
