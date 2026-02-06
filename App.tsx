@@ -21,12 +21,9 @@ const App: React.FC = () => {
     const p = await db.profile.get(1);
     if (p) {
       setPractitioner(p);
-      // Si pas de mot de passe, on déverrouille automatiquement
-      if (!p.password) {
-        setIsLocked(false);
-      }
+      if (!p.password) setIsLocked(false);
     } else {
-      const defaultProfile = { id: 1, firstName: '', lastName: '', themeColor: '#14b8a6' };
+      const defaultProfile = { id: 1, firstName: '', lastName: '', themeColor: '#14b8a6', isDarkMode: false };
       await db.profile.put(defaultProfile);
       setPractitioner(defaultProfile);
       setIsLocked(false);
@@ -36,6 +33,14 @@ const App: React.FC = () => {
   useEffect(() => {
     refreshPractitioner();
   }, []);
+
+  useEffect(() => {
+    if (practitioner?.isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [practitioner?.isDarkMode]);
 
   const themeStyles = React.useMemo(() => {
     const color = practitioner?.themeColor || '#14b8a6';
@@ -53,7 +58,7 @@ const App: React.FC = () => {
   };
 
   const handleResetExpress = async () => {
-    if (confirm("ATTENTION : Cette action supprimera DÉFINITIVEMENT toutes les données (patients, séances et profil). Continuer ?")) {
+    if (confirm("ATTENTION : Cette action supprimera DÉFINITIVEMENT toutes les données. Continuer ?")) {
       await db.resetDatabase();
       window.location.reload();
     }
@@ -66,27 +71,26 @@ const App: React.FC = () => {
       const sessions = await db.sessions.toArray();
       const profiles = await db.profile.toArray();
       
-      const dataToExport = {
-        app: "OstéoSuivi",
-        version: "1.3",
-        exportDate: new Date().toISOString(),
-        practitioner: profiles,
-        patients: patients,
-        sessions: sessions
+      // Inclusion explicite des configurations dans l'export
+      const dataToExport = { 
+        app: "OstéoSuivi", 
+        version: "2.0",
+        config: {
+          exportDate: new Date().toISOString(),
+          theme: practitioner?.themeColor,
+          mode: practitioner?.isDarkMode ? 'dark' : 'light'
+        },
+        practitioner: profiles, 
+        patients, 
+        sessions 
       };
-
+      
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      
-      const nameTag = practitioner?.lastName ? practitioner.lastName.toUpperCase() : 'BACKUP';
-      const dateTag = new Date().toISOString().split('T')[0];
-      
       link.href = url;
-      link.download = `osteo_backup_${nameTag}_${dateTag}.json`;
-      document.body.appendChild(link);
+      link.download = `osteosuivi_export_${new Date().toISOString().split('T')[0]}.json`;
       link.click();
-      document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
       alert("Erreur lors de l'exportation : " + error);
@@ -99,7 +103,7 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!confirm("L'importation remplacera TOUTES vos données (patients, séances ET profil). Voulez-vous continuer ?")) {
+    if (!confirm("L'importation remplacera TOUTES vos données. Voulez-vous continuer ?")) {
       e.target.value = '';
       return;
     }
@@ -109,52 +113,40 @@ const App: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
-        
         if (!json.patients || !json.sessions || !json.practitioner) {
-          throw new Error("Le fichier de sauvegarde semble incomplet ou incompatible.");
+          throw new Error("Fichier de sauvegarde invalide.");
         }
 
         await db.transaction('rw', db.patients, db.sessions, db.profile, async () => {
           await db.patients.clear();
           await db.sessions.clear();
           await db.profile.clear();
-          
-          if (json.patients.length > 0) await db.patients.bulkAdd(json.patients);
-          if (json.sessions.length > 0) await db.sessions.bulkAdd(json.sessions);
-          if (json.practitioner.length > 0) await db.profile.bulkAdd(json.practitioner);
+          await db.patients.bulkAdd(json.patients);
+          await db.sessions.bulkAdd(json.sessions);
+          await db.profile.bulkAdd(json.practitioner);
         });
 
-        alert("Données et profil praticien restaurés avec succès !");
+        alert("Données restaurées avec succès.");
         window.location.reload();
       } catch (error) {
-        alert("Échec de l'importation : " + (error as Error).message);
+        alert("Erreur lors de l'importation.");
       } finally {
         setIsProcessing(false);
-        e.target.value = '';
       }
     };
     reader.readAsText(file);
   };
 
-  // Si l'app est verrouillée, on affiche uniquement la vue Login
   if (isLocked && practitioner?.password) {
     return (
-      <div style={themeStyles} className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <style>{`
-          .bg-primary { background-color: var(--primary); }
-          .text-primary { color: var(--primary); }
-          .shadow-primary-soft { --tw-shadow-color: var(--primary-soft); }
-        `}</style>
-        <LoginView 
-          practitioner={practitioner} 
-          onUnlock={() => setIsLocked(false)} 
-        />
+      <div style={themeStyles} className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-4">
+        <LoginView practitioner={practitioner} onUnlock={() => setIsLocked(false)} />
       </div>
     );
   }
 
   return (
-    <div style={themeStyles} className={`max-w-4xl mx-auto min-h-screen flex flex-col bg-slate-50 font-sans ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}>
+    <div style={themeStyles} className={`max-w-5xl mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200 ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}>
       <style>{`
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
@@ -162,145 +154,61 @@ const App: React.FC = () => {
         .ring-primary { --tw-ring-color: var(--primary); }
         .bg-primary-soft { background-color: var(--primary-soft); }
         .border-primary-soft { border-color: var(--primary-border); }
-        .shadow-primary-soft { --tw-shadow-color: var(--primary-soft); }
       `}</style>
 
-      <input 
-        type="file" 
-        ref={importFileRef} 
-        onChange={handleImportData} 
-        accept=".json" 
-        className="hidden" 
-      />
+      <input type="file" ref={importFileRef} onChange={handleImportData} accept=".json" className="hidden" />
 
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-4">
           {currentView !== 'DASHBOARD' && (
-            <button 
-              onClick={() => navigateTo('DASHBOARD')}
-              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <ChevronLeft size={24} />
+            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
+              <ChevronLeft size={20} />
             </button>
           )}
-          <div 
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={() => navigateTo('DASHBOARD')}
-          >
-            <div className="w-10 h-10 bg-primary rounded-xl overflow-hidden flex items-center justify-center text-white shadow-primary-soft shadow-lg border border-primary-soft">
-              {practitioner?.photo ? (
-                <img src={practitioner.photo} alt="Moi" className="w-full h-full object-cover" />
-              ) : (
-                <UserCircle size={26} />
-              )}
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
+            <div className="w-9 h-9 bg-primary rounded-lg overflow-hidden flex items-center justify-center text-white border border-white/20">
+              {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={22} />}
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-black text-slate-800 leading-none">OstéoSuivi</span>
-              {practitioner?.lastName && (
-                <span className="text-[10px] font-bold text-primary uppercase tracking-tighter truncate max-w-[100px]">
-                  {practitioner.firstName ? practitioner.firstName[0] + '.' : ''} {practitioner.lastName}
-                </span>
-              )}
+              <span className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight tracking-tight">OstéoSuivi</span>
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                Cabinet {practitioner?.lastName || 'Médical'}
+              </span>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           {currentView === 'DASHBOARD' && (
             <>
-              <button
-                onClick={() => importFileRef.current?.click()}
-                className="p-2 text-slate-300 hover:text-amber-500 transition-colors"
-                title="Importer une sauvegarde"
-              >
-                <Upload size={18} />
-              </button>
-              <button
-                onClick={handleExportData}
-                className="p-2 text-slate-300 hover:text-emerald-500 transition-colors"
-                title="Exporter tout le cabinet"
-              >
-                <Download size={18} />
-              </button>
-              <button
-                onClick={handleResetExpress}
-                className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
-                title="Remise à zéro"
-              >
-                <RefreshCcw size={18} />
-              </button>
-              <button
-                onClick={() => navigateTo('PRACTITIONER_PROFILE')}
-                className="p-2 text-slate-400 hover:text-primary transition-colors mr-1"
-                title="Paramètres Praticien"
-              >
-                <Settings size={20} />
-              </button>
-              <button
-                onClick={() => navigateTo('ADD_PATIENT')}
-                className="bg-primary text-white p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-primary-soft hover:opacity-90 active:scale-95 transition-all"
-              >
-                <Plus size={20} />
-                <span className="hidden sm:inline text-xs uppercase tracking-widest">Nouveau Patient</span>
+              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer"><Upload size={18} /></button>
+              <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter"><Download size={18} /></button>
+              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres"><Settings size={18} /></button>
+              <button onClick={() => navigateTo('ADD_PATIENT')} className="ml-2 bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold hover:brightness-95 active:scale-95 transition-all shadow-sm">
+                <Plus size={18} />
+                <span className="hidden sm:inline">Nouveau Patient</span>
               </button>
             </>
           )}
           {practitioner?.password && (
-            <button 
-              onClick={() => setIsLocked(true)}
-              className="p-2 text-slate-300 hover:text-primary transition-colors"
-              title="Verrouiller"
-            >
+            <button onClick={() => setIsLocked(true)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
               <Lock size={18} />
             </button>
           )}
         </div>
       </header>
 
-      <main className="flex-1 p-4 pb-12">
-        {currentView === 'DASHBOARD' && (
-          <Dashboard onSelectPatient={(id) => navigateTo('PATIENT_DETAIL', id)} />
-        )}
-        
-        {currentView === 'ADD_PATIENT' && (
-          <PatientForm 
-            onCancel={() => navigateTo('DASHBOARD')} 
-            onSuccess={() => navigateTo('DASHBOARD')} 
-          />
-        )}
-
-        {currentView === 'EDIT_PATIENT' && selectedPatientId && (
-          <PatientForm 
-            patientId={selectedPatientId}
-            onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} 
-            onSuccess={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} 
-          />
-        )}
-
-        {currentView === 'PATIENT_DETAIL' && selectedPatientId && (
-          <PatientDetail 
-            patientId={selectedPatientId} 
-            onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)}
-            onDelete={() => navigateTo('DASHBOARD')}
-          />
-        )}
-
-        {currentView === 'PRACTITIONER_PROFILE' && (
-          <PractitionerProfile 
-            onSuccess={() => navigateTo('DASHBOARD')}
-            onCancel={() => navigateTo('DASHBOARD')}
-          />
-        )}
+      <main className="flex-1 p-6">
+        {currentView === 'DASHBOARD' && <Dashboard onSelectPatient={(id) => navigateTo('PATIENT_DETAIL', id)} />}
+        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => navigateTo('DASHBOARD')} />}
+        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} />}
+        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => navigateTo('DASHBOARD')} />}
+        {currentView === 'PRACTITIONER_PROFILE' && <PractitionerProfile onSuccess={() => { refreshPractitioner(); navigateTo('DASHBOARD'); }} onCancel={() => navigateTo('DASHBOARD')} />}
       </main>
-      
-      {isProcessing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-[2px]">
-          <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 flex items-center gap-4">
-            <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs font-black uppercase tracking-widest text-slate-600">Traitement en cours...</span>
-          </div>
-        </div>
-      )}
+
+      <footer className="py-4 text-center border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-900">
+        Dispositif de gestion de soins local et sécurisé
+      </footer>
     </div>
   );
 };

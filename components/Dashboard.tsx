@@ -8,22 +8,28 @@ interface DashboardProps {
   onSelectPatient: (id: number) => void;
 }
 
-const getGenderColor = (gender: Gender) => {
+const getGenderStyles = (gender: Gender) => {
   switch (gender) {
-    case 'M': return 'border-blue-400 bg-blue-50 text-blue-600';
-    case 'F': return 'border-pink-400 bg-pink-50 text-pink-600';
-    default: return 'border-slate-400 bg-slate-50 text-slate-600';
+    case 'M': return {
+      container: 'border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500',
+      avatar: 'bg-slate-100 dark:bg-slate-800 text-slate-400',
+      tag: 'text-blue-500'
+    };
+    case 'F': return {
+      container: 'border-slate-200 dark:border-slate-800 hover:border-pink-400 dark:hover:border-pink-500',
+      avatar: 'bg-slate-100 dark:bg-slate-800 text-slate-400',
+      tag: 'text-pink-500'
+    };
+    default: return {
+      container: 'border-slate-200 dark:border-slate-800 hover:border-primary',
+      avatar: 'bg-slate-100 dark:bg-slate-800 text-slate-400',
+      tag: 'text-slate-400'
+    };
   }
 };
 
 const calculateAge = (birthDate: string) => {
-  const birth = new Date(birthDate);
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  const m = now.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
-    age--;
-  }
+  const age = new Date().getFullYear() - new Date(birthDate).getFullYear();
   return age;
 };
 
@@ -33,13 +39,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient }) => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'M' | 'F'>('ALL');
 
-  useEffect(() => {
-    const fetchPatients = async () => {
-      const allPatients = await db.patients.toArray();
-      setPatients(allPatients);
-    };
-    fetchPatients();
-  }, []);
+  useEffect(() => { db.patients.toArray().then(setPatients); }, []);
 
   const filteredAndSortedPatients = patients
     .filter(p => {
@@ -48,103 +48,78 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient }) => {
       return matchesSearch && matchesGender;
     })
     .sort((a, b) => {
-      const nameA = a.lastName.toLowerCase();
-      const nameB = b.lastName.toLowerCase();
-      if (sortOrder === 'asc') return nameA.localeCompare(nameB);
-      return nameB.localeCompare(nameA);
+      const res = a.lastName.localeCompare(b.lastName);
+      return sortOrder === 'asc' ? res : -res;
     });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Search & Filters Toolbar */}
-      <div className="space-y-4">
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
-            type="text"
-            placeholder="Rechercher un dossier..."
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-[1.5rem] shadow-sm focus:outline-none focus:ring-4 focus:ring-primary-soft focus:border-primary transition-all font-medium text-slate-700"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            type="text" 
+            placeholder="Rechercher par nom..." 
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary outline-none text-sm transition-all"
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-            <button 
-              onClick={() => setSortOrder('asc')}
-              className={`p-2 rounded-xl transition-all ${sortOrder === 'asc' ? 'bg-primary-soft text-primary' : 'text-slate-400 hover:bg-slate-50'}`}
-              title="Trier A-Z"
-            >
-              <SortAsc size={20} />
-            </button>
-            <button 
-              onClick={() => setSortOrder('desc')}
-              className={`p-2 rounded-xl transition-all ${sortOrder === 'desc' ? 'bg-primary-soft text-primary' : 'text-slate-400 hover:bg-slate-50'}`}
-              title="Trier Z-A"
-            >
-              <SortDesc size={20} />
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-1">
+            {['ALL', 'M', 'F'].map(g => (
+              <button 
+                key={g} 
+                onClick={() => setGenderFilter(g as any)} 
+                className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded transition-all ${genderFilter === g ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                {g === 'ALL' ? 'Tous' : g}
+              </button>
+            ))}
           </div>
-
-          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm overflow-hidden">
-            <button 
-              onClick={() => setGenderFilter('ALL')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${genderFilter === 'ALL' ? 'bg-slate-800 text-white shadow-lg shadow-slate-200' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              Tous
-            </button>
-            <button 
-              onClick={() => setGenderFilter('M')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${genderFilter === 'M' ? 'bg-blue-500 text-white shadow-lg shadow-blue-100' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              H
-            </button>
-            <button 
-              onClick={() => setGenderFilter('F')}
-              className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${genderFilter === 'F' ? 'bg-pink-500 text-white shadow-lg shadow-pink-100' : 'text-slate-500 hover:bg-slate-50'}`}
-            >
-              F
-            </button>
+          <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 rounded p-0.5">
+            <button onClick={() => setSortOrder('asc')} className={`p-1.5 rounded transition-all ${sortOrder === 'asc' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-400'}`}><SortAsc size={16} /></button>
+            <button onClick={() => setSortOrder('desc')} className={`p-1.5 rounded transition-all ${sortOrder === 'desc' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-slate-400'}`}><SortDesc size={16} /></button>
           </div>
         </div>
       </div>
 
-      {/* List */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredAndSortedPatients.length > 0 ? (
-          filteredAndSortedPatients.map(patient => (
-            <button
-              key={patient.id}
-              onClick={() => patient.id && onSelectPatient(patient.id)}
-              className="group flex items-center gap-4 p-5 bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:border-primary hover:shadow-xl hover:shadow-primary-soft transition-all text-left active:scale-[0.98]"
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredAndSortedPatients.length > 0 ? filteredAndSortedPatients.map(patient => {
+          const styles = getGenderStyles(patient.gender);
+          return (
+            <button 
+              key={patient.id} 
+              onClick={() => onSelectPatient(patient.id!)} 
+              className={`group flex items-center gap-4 p-4 bg-white dark:bg-slate-900 border rounded-xl shadow-sm transition-all text-left ${styles.container} hover:shadow-md active:scale-[0.99]`}
             >
-              <div className={`w-16 h-16 rounded-3xl border-2 overflow-hidden flex items-center justify-center shrink-0 transition-all group-hover:scale-105 ${getGenderColor(patient.gender)}`}>
-                {patient.photo ? (
-                  <img src={patient.photo} alt={patient.lastName} className="w-full h-full object-cover" />
-                ) : (
-                  <User size={32} />
-                )}
+              <div className={`w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-700 ${styles.avatar}`}>
+                {patient.photo ? <img src={patient.photo} alt="" className="w-full h-full object-cover" /> : <User size={20} />}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-black text-slate-800 truncate uppercase tracking-tight text-sm">
-                    {patient.lastName} <span className="capitalize font-bold text-slate-500">{patient.firstName}</span>
-                  </h3>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate flex items-center gap-1.5">
+                  <span className="uppercase">{patient.lastName}</span>
+                  <span className="capitalize font-medium text-slate-500">{patient.firstName}</span>
+                  {patient.gender === 'F' && (
+                    <span className={`text-[10px] font-black ml-auto px-1.5 py-0.5 rounded border border-current bg-white dark:bg-slate-900 ${styles.tag}`}>F</span>
+                  )}
+                  {patient.gender === 'M' && (
+                    <span className="text-[10px] font-black ml-auto px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-400">M</span>
+                  )}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{calculateAge(patient.birthDate)} ans</span>
+                  <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                  <span className="text-[10px] font-bold text-primary uppercase truncate">{patient.profession || '...'}</span>
                 </div>
-                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter mt-1">
-                  {calculateAge(patient.birthDate)} ans <span className="opacity-30">•</span> {patient.gender === 'M' ? 'Homme' : 'Femme'}
-                </p>
-                <p className="text-xs text-primary font-black truncate mt-1 uppercase tracking-widest">
-                  {patient.profession || '...'}
-                </p>
               </div>
             </button>
-          ))
-        ) : (
-          <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-300 bg-white rounded-[3rem] border-4 border-dashed border-slate-50">
-            <UserRoundSearch size={64} strokeWidth={1} className="mb-4 opacity-20" />
-            <p className="text-sm font-black uppercase tracking-[0.2em] opacity-40">Aucun dossier trouvé</p>
+          );
+        }) : (
+          <div className="col-span-full py-12 flex flex-col items-center text-slate-400">
+            <UserRoundSearch size={48} className="mb-3 opacity-20" />
+            <p className="text-xs font-bold uppercase tracking-widest">Aucun résultat</p>
           </div>
         )}
       </div>

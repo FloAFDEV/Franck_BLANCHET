@@ -31,8 +31,9 @@ export interface Practitioner {
   firstName: string;
   lastName: string;
   photo?: string;
-  themeColor: string; // Hex ou nom de couleur
-  password?: string; // Mot de passe de hachage local ou texte simple pour protection locale
+  themeColor: string; 
+  password?: string;
+  isDarkMode?: boolean;
 }
 
 export type View = 'DASHBOARD' | 'ADD_PATIENT' | 'EDIT_PATIENT' | 'PATIENT_DETAIL' | 'PRACTITIONER_PROFILE' | 'LOGIN';
