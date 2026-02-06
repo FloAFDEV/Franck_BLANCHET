@@ -12,6 +12,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [practitioner, setPractitioner] = useState<Practitioner | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const refreshPractitioner = async () => {
@@ -52,16 +53,17 @@ const App: React.FC = () => {
   };
 
   const handleExportData = async () => {
+    setIsProcessing(true);
     try {
       const patients = await db.patients.toArray();
       const sessions = await db.sessions.toArray();
-      const profile = await db.profile.toArray(); // On récupère tout le profil (table single-row)
+      const profiles = await db.profile.toArray();
       
       const dataToExport = {
         app: "OstéoSuivi",
-        version: "1.1",
+        version: "1.2",
         exportDate: new Date().toISOString(),
-        practitioner: profile, // Inclusion du profil praticien
+        practitioner: profiles,
         patients: patients,
         sessions: sessions
       };
@@ -70,19 +72,19 @@ const App: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       
-      const fileName = practitioner?.lastName 
-        ? `sauvegarde_osteo_${practitioner.lastName.toUpperCase()}_${new Date().toISOString().split('T')[0]}.json`
-        : `sauvegarde_osteo_${new Date().toISOString().split('T')[0]}.json`;
-
+      const nameTag = practitioner?.lastName ? practitioner.lastName.toUpperCase() : 'BACKUP';
+      const dateTag = new Date().toISOString().split('T')[0];
+      
       link.href = url;
-      link.download = fileName;
+      link.download = `osteo_backup_${nameTag}_${dateTag}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } catch (error) {
-      alert("Erreur lors de l'exportation des données.");
-      console.error(error);
+      alert("Erreur lors de l'exportation : " + error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -90,44 +92,47 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!confirm("L'importation remplacera TOUTES vos données actuelles par celles du fichier. Voulez-vous continuer ?")) {
+    if (!confirm("L'importation remplacera TOUTES vos données (patients, séances ET profil). Voulez-vous continuer ?")) {
       e.target.value = '';
       return;
     }
 
+    setIsProcessing(true);
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         
-        if (!json.patients || !json.sessions) {
-          throw new Error("Format de fichier incompatible ou corrompu.");
+        // Validation basique du format
+        if (!json.patients || !json.sessions || !json.practitioner) {
+          throw new Error("Le fichier de sauvegarde semble incomplet ou incompatible.");
         }
 
-        // Nettoyage de la base existante
-        await db.resetDatabase();
+        // Nettoyage et Importation
+        await db.transaction('rw', db.patients, db.sessions, db.profile, async () => {
+          await db.patients.clear();
+          await db.sessions.clear();
+          await db.profile.clear();
+          
+          if (json.patients.length > 0) await db.patients.bulkAdd(json.patients);
+          if (json.sessions.length > 0) await db.sessions.bulkAdd(json.sessions);
+          if (json.practitioner.length > 0) await db.profile.bulkAdd(json.practitioner);
+        });
 
-        // Importation par lots
-        if (json.patients.length > 0) await db.patients.bulkAdd(json.patients);
-        if (json.sessions.length > 0) await db.sessions.bulkAdd(json.sessions);
-        
-        // Importation du profil praticien si présent
-        if (json.practitioner && json.practitioner.length > 0) {
-          await db.profile.bulkPut(json.practitioner);
-        }
-
-        alert("Données et profil restaurés avec succès !");
+        alert("Données et profil praticien restaurés avec succès !");
         window.location.reload();
       } catch (error) {
         alert("Échec de l'importation : " + (error as Error).message);
+      } finally {
+        setIsProcessing(false);
+        e.target.value = '';
       }
     };
     reader.readAsText(file);
-    e.target.value = '';
   };
 
   return (
-    <div style={themeStyles} className="max-w-4xl mx-auto min-h-screen flex flex-col bg-slate-50 font-sans">
+    <div style={themeStyles} className={`max-w-4xl mx-auto min-h-screen flex flex-col bg-slate-50 font-sans ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}>
       <style>{`
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
@@ -171,7 +176,7 @@ const App: React.FC = () => {
               <span className="text-sm font-black text-slate-800 leading-none">OstéoSuivi</span>
               {practitioner?.lastName && (
                 <span className="text-[10px] font-bold text-primary uppercase tracking-tighter truncate max-w-[100px]">
-                  Dr. {practitioner.lastName}
+                  {practitioner.firstName ? practitioner.firstName[0] + '.' : ''} {practitioner.lastName}
                 </span>
               )}
             </div>
@@ -184,28 +189,28 @@ const App: React.FC = () => {
               <button
                 onClick={() => importFileRef.current?.click()}
                 className="p-2 text-slate-300 hover:text-amber-500 transition-colors"
-                title="Restaurer une sauvegarde"
+                title="Importer une sauvegarde"
               >
                 <Upload size={18} />
               </button>
               <button
                 onClick={handleExportData}
                 className="p-2 text-slate-300 hover:text-emerald-500 transition-colors"
-                title="Créer une sauvegarde complète"
+                title="Exporter tout le cabinet"
               >
                 <Download size={18} />
               </button>
               <button
                 onClick={handleResetExpress}
                 className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
-                title="Réinitialiser"
+                title="Remise à zéro"
               >
                 <RefreshCcw size={18} />
               </button>
               <button
                 onClick={() => navigateTo('PRACTITIONER_PROFILE')}
                 className="p-2 text-slate-400 hover:text-primary transition-colors mr-1"
-                title="Mon Profil"
+                title="Paramètres Praticien"
               >
                 <Settings size={20} />
               </button>
@@ -214,7 +219,7 @@ const App: React.FC = () => {
                 className="bg-primary text-white p-2 sm:px-4 sm:py-2 rounded-xl flex items-center gap-2 font-bold shadow-lg shadow-primary-soft hover:opacity-90 active:scale-95 transition-all"
               >
                 <Plus size={20} />
-                <span className="hidden sm:inline text-xs uppercase tracking-widest">Nouveau</span>
+                <span className="hidden sm:inline text-xs uppercase tracking-widest">Nouveau Patient</span>
               </button>
             </>
           )}
@@ -256,6 +261,15 @@ const App: React.FC = () => {
           />
         )}
       </main>
+      
+      {isProcessing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-[2px]">
+          <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 flex items-center gap-4">
+            <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-xs font-black uppercase tracking-widest text-slate-600">Traitement en cours...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
