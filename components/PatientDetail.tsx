@@ -4,6 +4,7 @@ import { db } from '../db';
 import { Patient, Session } from '../types';
 import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, BookOpen } from 'lucide-react';
 import SessionForm from './SessionForm';
+import { getImageUrl, revokeUrl } from '../services/imageService';
 
 interface PatientDetailProps {
   patientId: number;
@@ -13,16 +14,30 @@ interface PatientDetailProps {
 
 const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDelete }) => {
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isAddingSession, setIsAddingSession] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
 
   const fetchData = async () => {
-    const p = await db.patients.get(patientId); if (p) setPatient(p);
-    const s = await db.sessions.where('patientId').equals(patientId).reverse().sortBy('date'); setSessions(s);
+    const p = await db.patients.get(patientId); 
+    if (p) {
+      setPatient(p);
+      if (p.photoId) {
+        const url = await getImageUrl(p.photoId, 'thumb');
+        setPhotoUrl(url);
+      }
+    }
+    const s = await db.sessions.where('patientId').equals(patientId).reverse().sortBy('date'); 
+    setSessions(s);
   };
 
-  useEffect(() => { fetchData(); }, [patientId]);
+  useEffect(() => { 
+    fetchData(); 
+    return () => {
+      if (photoUrl) revokeUrl(photoUrl);
+    };
+  }, [patientId]);
 
   if (!patient) return null;
 
@@ -45,7 +60,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="p-6 sm:p-8 flex flex-col sm:flex-row gap-8">
           <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 self-center sm:self-start">
-            {patient.photo ? <img src={patient.photo} alt="" className="w-full h-full object-cover" /> : <User size={40} className="text-slate-300" />}
+            {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <User size={40} className="text-slate-300" />}
           </div>
           
           <div className="flex-1 space-y-4">

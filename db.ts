@@ -1,28 +1,38 @@
-// Fix: Use default import for Dexie to ensure instance methods like 'version' are properly inherited and recognized by the TypeScript compiler.
-import Dexie, { Table } from 'dexie';
-import { Patient, Session, Practitioner } from './types';
 
-// OsteoDB extends the Dexie class to manage our local IndexedDB instance.
+import Dexie, { Table } from 'dexie';
+import { Patient, Session, Practitioner, MediaMetadata, MediaBlob } from './types';
+
 export class OsteoDB extends Dexie {
   patients!: Table<Patient, number>;
   sessions!: Table<Session, number>;
   profile!: Table<Practitioner, number>;
+  media_metadata!: Table<MediaMetadata, number>;
+  media_blobs!: Table<MediaBlob, number>;
+  thumbnails!: Table<MediaBlob, number>;
 
   constructor() {
     super('OsteoSuiviDB');
-    // Define the database schema. The versioning allows for future schema migrations.
-    // We use the .version() method inherited from the Dexie base class.
-    this.version(2).stores({
-      patients: '++id, lastName, firstName, gender',
+    
+    // Schema v3: Séparation metadata/blobs pour performance
+    this.version(3).stores({
+      patients: '++id, lastName, firstName, gender, photoId',
       sessions: '++id, patientId, date',
-      profile: 'id' // Single profile (id: 1)
+      profile: 'id',
+      media_metadata: '++id, patientId, sessionId, processedAt',
+      media_blobs: 'mediaId', // Primary key is the ID from metadata
+      thumbnails: 'mediaId'
     });
   }
 
   async resetDatabase() {
-    await this.patients.clear();
-    await this.sessions.clear();
-    await this.profile.clear();
+    await Promise.all([
+      this.patients.clear(),
+      this.sessions.clear(),
+      this.profile.clear(),
+      this.media_metadata.clear(),
+      this.media_blobs.clear(),
+      this.thumbnails.clear()
+    ]);
   }
 }
 

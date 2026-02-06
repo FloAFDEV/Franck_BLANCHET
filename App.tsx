@@ -7,7 +7,7 @@ import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
 import LoginView from './components/LoginView';
-import { Plus, ChevronLeft, UserCircle, RefreshCcw, Settings, Download, Upload, Lock } from 'lucide-react';
+import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [practitioner, setPractitioner] = useState<Practitioner | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [storageUsage, setStorageUsage] = useState<{ used: number, total: number } | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const refreshPractitioner = async () => {
@@ -30,8 +31,22 @@ const App: React.FC = () => {
     }
   };
 
+  const updateStorageEstimate = async () => {
+    if (navigator.storage && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      setStorageUsage({
+        used: estimate.usage || 0,
+        total: estimate.quota || 0
+      });
+    }
+    if (navigator.storage && navigator.storage.persist) {
+      await navigator.storage.persist();
+    }
+  };
+
   useEffect(() => {
     refreshPractitioner();
+    updateStorageEstimate();
   }, []);
 
   useEffect(() => {
@@ -57,39 +72,29 @@ const App: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
-  const handleResetExpress = async () => {
-    if (confirm("ATTENTION : Cette action supprimera DÉFINITIVEMENT toutes les données. Continuer ?")) {
-      await db.resetDatabase();
-      window.location.reload();
-    }
-  };
-
   const handleExportData = async () => {
     setIsProcessing(true);
     try {
       const patients = await db.patients.toArray();
       const sessions = await db.sessions.toArray();
       const profiles = await db.profile.toArray();
+      const mediaMeta = await db.media_metadata.toArray();
       
-      // Inclusion explicite des configurations dans l'export
       const dataToExport = { 
         app: "OstéoSuivi", 
-        version: "2.0",
-        config: {
-          exportDate: new Date().toISOString(),
-          theme: practitioner?.themeColor,
-          mode: practitioner?.isDarkMode ? 'dark' : 'light'
-        },
+        version: "3.0",
+        exportDate: new Date().toISOString(),
         practitioner: profiles, 
         patients, 
-        sessions 
+        sessions,
+        mediaMeta
       };
       
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `osteosuivi_export_${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `osteosuivi_backup_${new Date().toISOString().split('T')[0]}.json`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -103,7 +108,7 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!confirm("L'importation remplacera TOUTES vos données. Voulez-vous continuer ?")) {
+    if (!confirm("Attention : l'importation va remplacer vos données actuelles. Continuer ?")) {
       e.target.value = '';
       return;
     }
@@ -112,30 +117,33 @@ const App: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const json = JSON.parse(event.target?.result as string);
-        if (!json.patients || !json.sessions || !json.practitioner) {
-          throw new Error("Fichier de sauvegarde invalide.");
-        }
+        const data = JSON.parse(event.target?.result as string);
+        if (data.app !== "OstéoSuivi") throw new Error("Fichier non valide");
 
-        await db.transaction('rw', db.patients, db.sessions, db.profile, async () => {
+        await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
           await db.patients.clear();
           await db.sessions.clear();
           await db.profile.clear();
-          await db.patients.bulkAdd(json.patients);
-          await db.sessions.bulkAdd(json.sessions);
-          await db.profile.bulkAdd(json.practitioner);
+          await db.media_metadata.clear();
+
+          if (data.patients) await db.patients.bulkAdd(data.patients);
+          if (data.sessions) await db.sessions.bulkAdd(data.sessions);
+          if (data.practitioner) await db.profile.bulkPut(data.practitioner);
+          if (data.mediaMeta) await db.media_metadata.bulkAdd(data.mediaMeta);
         });
 
-        alert("Données restaurées avec succès.");
+        alert("Importation réussie !");
         window.location.reload();
-      } catch (error) {
-        alert("Erreur lors de l'importation.");
+      } catch (err) {
+        alert("Erreur lors de l'importation : " + (err as Error).message);
       } finally {
         setIsProcessing(false);
       }
     };
     reader.readAsText(file);
   };
+
+  const usagePercent = storageUsage ? Math.round((storageUsage.used / storageUsage.total) * 100) : 0;
 
   if (isLocked && practitioner?.password) {
     return (
@@ -146,69 +154,81 @@ const App: React.FC = () => {
   }
 
   return (
-    <div style={themeStyles} className={`max-w-5xl mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200 ${isProcessing ? 'pointer-events-none opacity-50' : ''}`}>
+    <div style={themeStyles} className={`mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200 ${isProcessing ? 'pointer-events-none' : ''}`}>
       <style>{`
         .bg-primary { background-color: var(--primary); }
         .text-primary { color: var(--primary); }
         .border-primary { border-color: var(--primary); }
-        .ring-primary { --tw-ring-color: var(--primary); }
         .bg-primary-soft { background-color: var(--primary-soft); }
-        .border-primary-soft { border-color: var(--primary-border); }
       `}</style>
 
-      <input type="file" ref={importFileRef} onChange={handleImportData} accept=".json" className="hidden" />
+      {isProcessing && (
+        <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center gap-4">
+            <Loader2 className="animate-spin text-primary" size={40} />
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500">Traitement en cours...</p>
+          </div>
+        </div>
+      )}
 
-      <header className="sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2 sm:gap-4">
           {currentView !== 'DASHBOARD' && (
-            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
+            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-500">
               <ChevronLeft size={20} />
             </button>
           )}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
-            <div className="w-9 h-9 bg-primary rounded-lg overflow-hidden flex items-center justify-center text-white border border-white/20">
-              {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={22} />}
+          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-xl overflow-hidden flex items-center justify-center text-white shadow-sm">
+              {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={24} />}
             </div>
             <div className="flex flex-col">
-              <span className="text-base font-bold text-slate-900 dark:text-slate-100 leading-tight tracking-tight">OstéoSuivi</span>
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                Cabinet {practitioner?.lastName || 'Médical'}
-              </span>
+              <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">Local-DB</span>
+                <div className="flex items-center gap-1 text-[8px] font-black text-primary leading-none">
+                  <HardDrive size={8} /> {usagePercent}%
+                </div>
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {currentView === 'DASHBOARD' && (
             <>
-              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer"><Upload size={18} /></button>
-              <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter"><Download size={18} /></button>
+              <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
+              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer sauvegarde"><Upload size={18} /></button>
+              <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter sauvegarde"><Download size={18} /></button>
               <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres"><Settings size={18} /></button>
-              <button onClick={() => navigateTo('ADD_PATIENT')} className="ml-2 bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold hover:brightness-95 active:scale-95 transition-all shadow-sm">
-                <Plus size={18} />
-                <span className="hidden sm:inline">Nouveau Patient</span>
-              </button>
             </>
-          )}
-          {practitioner?.password && (
-            <button onClick={() => setIsLocked(true)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-              <Lock size={18} />
-            </button>
           )}
         </div>
       </header>
 
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
         {currentView === 'DASHBOARD' && <Dashboard onSelectPatient={(id) => navigateTo('PATIENT_DETAIL', id)} />}
-        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => navigateTo('DASHBOARD')} />}
-        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} />}
-        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => navigateTo('DASHBOARD')} />}
+        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => { updateStorageEstimate(); navigateTo('DASHBOARD'); }} />}
+        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => { updateStorageEstimate(); navigateTo('PATIENT_DETAIL', selectedPatientId); }} />}
+        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => { updateStorageEstimate(); navigateTo('DASHBOARD'); }} />}
         {currentView === 'PRACTITIONER_PROFILE' && <PractitionerProfile onSuccess={() => { refreshPractitioner(); navigateTo('DASHBOARD'); }} onCancel={() => navigateTo('DASHBOARD')} />}
       </main>
 
-      <footer className="py-4 text-center border-t border-slate-200 dark:border-slate-800 text-[10px] text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-900">
-        Dispositif de gestion de soins local et sécurisé
-      </footer>
+      {currentView === 'DASHBOARD' && (
+        <div className="fixed bottom-6 right-6 z-40 sm:hidden">
+          <button onClick={() => navigateTo('ADD_PATIENT')} className="w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary/40 active:scale-90 transition-transform">
+            <Plus size={28} />
+          </button>
+        </div>
+      )}
+      
+      {currentView === 'DASHBOARD' && (
+        <div className="hidden sm:block fixed bottom-8 right-8">
+           <button onClick={() => navigateTo('ADD_PATIENT')} className="bg-primary text-white px-6 py-3 rounded-2xl flex items-center gap-3 text-sm font-black uppercase tracking-widest hover:brightness-110 shadow-xl shadow-primary/20 transition-all active:scale-95">
+            <Plus size={20} /> Nouveau Patient
+          </button>
+        </div>
+      )}
     </div>
   );
 };
