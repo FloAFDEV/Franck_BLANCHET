@@ -72,15 +72,30 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     </div>
   );
 
-  const InfoTag = ({ label, value, icon: Icon }: any) => (
-    <div className="flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
-      {Icon && <Icon size={14} className="text-slate-400 shrink-0" />}
-      <div className="min-w-0">
-        <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-tight">{label}</p>
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{value || '—'}</p>
+  const InfoTag = ({ label, value, icon: Icon, href }: any) => {
+    const Content = (
+      <div className={`flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 transition-all ${href ? 'hover:border-primary group cursor-pointer' : ''}`}>
+        {Icon && <Icon size={14} className={`shrink-0 ${href ? 'text-slate-400 group-hover:text-primary' : 'text-slate-400'}`} />}
+        <div className="min-w-0 flex-1">
+          <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-tight">{label}</p>
+          <p className={`text-xs font-medium truncate ${href ? 'text-slate-700 dark:text-slate-300 group-hover:text-primary' : 'text-slate-700 dark:text-slate-300'}`}>
+            {value || '—'}
+          </p>
+        </div>
+        {href && <ExternalLink size={10} className="text-slate-300 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all" />}
       </div>
-    </div>
-  );
+    );
+
+    if (href && value) {
+      return (
+        <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noopener noreferrer' : undefined} className="block no-underline">
+          {Content}
+        </a>
+      );
+    }
+
+    return Content;
+  };
 
   const MedicalCard = ({ title, content, icon: Icon }: any) => (
     <div className="bg-white dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-2">
@@ -117,11 +132,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <InfoTag label="Téléphone" value={patient.phone} icon={Phone} />
+            <InfoTag label="Téléphone" value={patient.phone} icon={Phone} href={patient.phone ? `tel:${patient.phone.replace(/\s/g, '')}` : undefined} />
+            <InfoTag label="Email" value={patient.email} icon={Mail} href={patient.email ? `mailto:${patient.email}` : undefined} />
+            <InfoTag label="Localité" value={patient.address} icon={MapPin} href={patient.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(patient.address)}` : undefined} />
             <InfoTag label="Profession" value={patient.profession} icon={Briefcase} />
             <InfoTag label="Famille" value={`${patient.familyStatus}${patient.hasChildren ? ` (${patient.hasChildren})` : ''}`} icon={Users} />
-            <InfoTag label="Localité" value={patient.address} icon={MapPin} />
-            <InfoTag label="Email" value={patient.email} icon={Mail} />
             <InfoTag label="Latéralité" value={patient.laterality === 'G' ? 'Gaucher' : 'Droitier'} icon={Activity} />
           </div>
         </div>
