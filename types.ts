@@ -1,5 +1,6 @@
 
 export type Gender = 'M' | 'F';
+export type Laterality = 'G' | 'D';
 
 export interface Patient {
   id?: number;
@@ -9,9 +10,27 @@ export interface Patient {
   gender: Gender;
   phone: string;
   email: string;
+  address: string;
+  familyStatus: string;
+  hasChildren: string; // "Non" ou description (ex: "2 enfants")
   profession: string;
-  medicalHistory: string;
-  photoId?: number; // Référence vers media_metadata
+  physicalActivity: string;
+  isSmoker: boolean;
+  contraception?: string; // Pour les femmes
+  currentTreatment: string;
+  laterality: Laterality;
+  gpName: string; // Médecin traitant
+  gpCity: string; // Commune du médecin
+  
+  // Antécédents
+  antSurgical: string;
+  antTraumaRhuma: string;
+  antOphtalmo: string;
+  antORL: string;
+  antDigestive: string;
+  
+  medicalHistory: string; // Gardé pour compatibilité ou notes globales
+  photoId?: number;
   createdAt: number;
 }
 
@@ -39,7 +58,7 @@ export interface MediaMetadata {
 }
 
 export interface MediaBlob {
-  mediaId: number; // Clé primaire manuelle (liée à MediaMetadata.id)
+  mediaId: number;
   data: Blob;
 }
 
@@ -47,12 +66,12 @@ export interface Practitioner {
   id: number;
   firstName: string;
   lastName: string;
-  photo?: string; // Gardé en base64 car très petit (favicon/profile)
+  photo?: string;
   themeColor: string; 
   password?: string;
   isDarkMode?: boolean;
-  lastExportDate?: number; // Timestamp de la dernière sauvegarde
-  lastExportRecordCount?: number; // Somme patients + séances lors de la dernière sauvegarde
+  lastExportDate?: number;
+  lastExportRecordCount?: number;
 }
 
 export type View = 'DASHBOARD' | 'ADD_PATIENT' | 'EDIT_PATIENT' | 'PATIENT_DETAIL' | 'PRACTITIONER_PROFILE' | 'LOGIN';

@@ -83,13 +83,30 @@ const App: React.FC = () => {
   }, [practitioner?.isDarkMode]);
 
   const themeStyles = React.useMemo(() => {
-    const color = practitioner?.themeColor || '#14b8a6';
+    let color = practitioner?.themeColor || '#14b8a6';
+    const isDark = practitioner?.isDarkMode;
+    
+    // Fonction simple pour éclaircir une couleur hex pour le mode sombre
+    const lighten = (hex: string, percent: number) => {
+      const num = parseInt(hex.replace("#",""), 16),
+      amt = Math.round(2.55 * percent),
+      R = (num >> 16) + amt,
+      G = (num >> 8 & 0x00FF) + amt,
+      B = (num & 0x0000FF) + amt;
+      return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+    };
+
+    // Si on est en mode sombre et que le thème est gris (#475569 ou proche), 
+    // on éclaircit la version "texte" pour l'accessibilité
+    const textColor = (isDark && (color === '#475569' || color === '#64748b')) ? lighten(color, 40) : color;
+
     return {
       '--primary': color,
+      '--primary-text': textColor,
       '--primary-soft': `${color}15`,
       '--primary-border': `${color}30`,
     } as React.CSSProperties;
-  }, [practitioner?.themeColor]);
+  }, [practitioner?.themeColor, practitioner?.isDarkMode]);
 
   const navigateTo = (view: View, patientId: number | null = null) => {
     setCurrentView(view);
@@ -123,7 +140,6 @@ const App: React.FC = () => {
       link.click();
       URL.revokeObjectURL(url);
 
-      // Mise à jour des métadonnées de sauvegarde
       if (practitioner) {
         const updatedProfile = { 
           ...practitioner, 
@@ -207,7 +223,7 @@ const App: React.FC = () => {
     <div style={themeStyles} className={`mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200 ${isProcessing ? 'pointer-events-none' : ''}`}>
       <style>{`
         .bg-primary { background-color: var(--primary); }
-        .text-primary { color: var(--primary); }
+        .text-primary { color: var(--primary-text); }
         .border-primary { border-color: var(--primary); }
         .bg-primary-soft { background-color: var(--primary-soft); }
       `}</style>

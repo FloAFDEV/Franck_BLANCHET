@@ -12,7 +12,7 @@ interface PractitionerProfileProps {
 const THEME_COLORS = [
   { name: 'Teal Médical', value: '#14b8a6' },
   { name: 'Amber Pro', value: '#d97706' },
-  { name: 'Gris Neutre', value: '#475569' }
+  { name: 'Gris Neutre', value: '#64748b' } // Passage de Slate 600 à Slate 500 pour meilleur contraste
 ];
 
 // Composant interne pour le recadrage
@@ -58,34 +58,20 @@ const ImageCropper: React.FC<{
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, size, size);
 
-      // Calcul du ratio et du placement
       const img = imgRef.current;
-      const displaySize = 280; // La taille du cadre de prévisualisation dans le CSS
-      const scale = (img.naturalWidth / img.width) * zoom;
+      const displaySize = 280; 
+      const ratio = size / displaySize;
       
-      // On calcule le décalage réel par rapport au centre du cadre
-      const centerX = position.x + (img.width * zoom) / 2;
-      const centerY = position.y + (img.height * zoom) / 2;
-      
-      const dx = (size / 2) - ( (displaySize/2 - position.x) * (size/displaySize) );
-      const dy = (size / 2) - ( (displaySize/2 - position.y) * (size/displaySize) );
-
       ctx.save();
       ctx.translate(size / 2, size / 2);
       ctx.scale(zoom, zoom);
       
-      // Ajustement pour dessiner l'image centrée sur le point choisi
-      const renderW = (img.naturalWidth * (size / img.naturalWidth));
-      const renderH = (img.naturalHeight * (size / img.naturalWidth));
-      
-      // Simplification : On dessine l'image avec les coordonnées de position transformées
-      const ratio = size / displaySize;
       ctx.drawImage(
         img, 
-        (position.x - displaySize/2) * ratio, 
-        (position.y - displaySize/2) * ratio, 
-        img.width * ratio, 
-        img.height * ratio
+        (position.x - displaySize/2) * ratio / zoom, 
+        (position.y - displaySize/2) * ratio / zoom, 
+        img.width * ratio / zoom, 
+        img.height * ratio / zoom
       );
       ctx.restore();
 
@@ -102,7 +88,6 @@ const ImageCropper: React.FC<{
         </div>
 
         <div className="p-8 flex flex-col items-center gap-8">
-          {/* Cadre de recadrage fixe */}
           <div 
             ref={containerRef}
             className="relative w-72 h-72 rounded-3xl bg-slate-100 dark:bg-slate-950 border-4 border-primary/20 overflow-hidden cursor-move touch-none shadow-inner"
@@ -126,11 +111,9 @@ const ImageCropper: React.FC<{
               }}
               onLoad={(e) => {
                 const img = e.currentTarget;
-                // Centrage initial
                 setPosition({ x: (288 - img.width) / 2, y: (288 - img.height) / 2 });
               }}
             />
-            {/* Guide visuel */}
             <div className="absolute inset-0 border-[40px] border-slate-950/40 pointer-events-none"></div>
             <div className="absolute inset-0 border border-white/30 pointer-events-none"></div>
           </div>
