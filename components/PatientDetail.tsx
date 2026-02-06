@@ -58,7 +58,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
   };
 
   const handleDelete = async () => {
-    if (confirm(`Confirmer la suppression définitive du dossier de ${patient.lastName} ?`)) {
+    if (confirm(`Confirmer la suppression définitive du dossier de ${patient.lastName} ? Cette action est irréversible.`)) {
       await db.patients.delete(patientId);
       await db.sessions.where('patientId').equals(patientId).delete();
       onDelete();
@@ -94,7 +94,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           </div>
           
           <div className="flex-1 w-full space-y-6">
-            {/* Identity & Actions */}
             <div className="flex flex-col gap-6">
               <div className="text-center sm:text-left">
                 <h2 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tighter leading-none mb-3">
@@ -116,32 +115,31 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
               </div>
             </div>
 
-            {/* Infos Contact - Layout flexible anti-coupure */}
+            {/* Infos Contact - Layout flexible avec break-all pour ne rien couper */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-start gap-3 p-3 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-colors">
                 <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 shadow-sm"><Phone size={16} /></div>
-                <div className="min-w-0 flex flex-col justify-center">
+                <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Téléphone</p>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200 break-all">{patient.phone || '-- -- -- --'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-colors">
                 <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 shadow-sm"><Mail size={16} /></div>
-                <div className="min-w-0 flex flex-col justify-center">
+                <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Email</p>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200 break-all">{patient.email || 'Non renseigné'}</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-slate-50/50 dark:bg-slate-800/20 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-slate-800 transition-colors">
                 <div className="w-9 h-9 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 shadow-sm"><Briefcase size={16} /></div>
-                <div className="min-w-0 flex flex-col justify-center">
+                <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Profession</p>
                   <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{patient.profession || '...'}</p>
                 </div>
               </div>
             </div>
 
-            {/* Antécédents - Boite Stylisée */}
             <div className="relative p-5 rounded-3xl bg-primary-soft border border-primary-border">
               <div className="flex items-center gap-2 mb-3 text-[10px] font-black text-primary uppercase tracking-[0.2em]">
                 <History size={14} strokeWidth={2.5} /> Antécédents Médicaux
@@ -154,7 +152,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         </div>
       </div>
 
-      {/* Historique des Séances */}
       <div className="space-y-4">
         <div className="flex items-center justify-between px-4">
           <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">Historique des Soins</h3>

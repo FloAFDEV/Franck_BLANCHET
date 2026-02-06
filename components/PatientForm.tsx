@@ -20,6 +20,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (patientId) {
@@ -31,6 +32,15 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
       });
     }
   }, [patientId]);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let url: string | null = null;
@@ -47,15 +57,35 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
 
   const toggleCamera = async () => {
     if (isCameraOpen) {
-      (videoRef.current?.srcObject as MediaStream)?.getTracks().forEach(t => t.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
       setIsCameraOpen(false);
     } else {
       setIsCameraOpen(true);
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      } catch { 
-        alert("Impossible d'accéder à la caméra.");
+        // Résolution optimisée pour mobile : haute qualité sans surcharge.
+        // On demande une résolution Full HD pour garantir une capture nette.
+        const constraints = {
+          video: {
+            facingMode: 'environment', // Caméra arrière pour les photos patients
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(console.error);
+          };
+        }
+      } catch (err) { 
+        console.error("Erreur caméra:", err);
+        alert("Accès caméra refusé ou non disponible. Veuillez vérifier les autorisations de votre navigateur.");
         setIsCameraOpen(false); 
       }
     }
@@ -64,10 +94,19 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
   const capturePhoto = async () => {
     if (videoRef.current) {
       setIsProcessing(true);
+      const video = videoRef.current;
       const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth; 
-      canvas.height = videoRef.current.videoHeight;
-      canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
+      
+      // Utilisation stricte des dimensions réelles du flux vidéo pour éviter toute distorsion
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      canvas.width = width; 
+      canvas.height = height;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, width, height);
+      }
       
       canvas.toBlob(async (blob) => {
         if (blob) {
@@ -75,7 +114,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
             const id = await processAndStoreImage(blob, undefined, undefined, 'photo_patient');
             setPhotoId(id);
           } catch (err) {
-            alert(err instanceof Error ? err.message : "Erreur capture");
+            alert(err instanceof Error ? err.message : "Échec du traitement de la photo.");
           }
         }
         setIsProcessing(false);
@@ -92,7 +131,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
         const id = await processAndStoreImage(file, undefined, undefined, 'upload_patient');
         setPhotoId(id);
       } catch (err) { 
-        alert(err instanceof Error ? err.message : "Erreur traitement image"); 
+        alert(err instanceof Error ? err.message : "Erreur de traitement."); 
       }
       finally { setIsProcessing(false); }
     }
@@ -116,22 +155,38 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
       <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
         <div className="flex flex-col items-center space-y-4">
           <div className={`relative w-32 h-32 rounded-2xl border-[3px] ${formData.gender === 'F' ? 'border-pink-500' : 'border-blue-500'} overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-slate-800 shadow-inner`}>
-            {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <Camera className="text-slate-200" size={32} />}
-            {isCameraOpen && <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-10" />}
+            {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <Camera className="text-slate-100 dark:text-slate-800" size={32} />}
+            {isCameraOpen && (
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="absolute inset-0 w-full h-full object-cover z-10" 
+              />
+            )}
             {isProcessing && <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 z-20 flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {!isCameraOpen ? (
               <>
-                <button type="button" onClick={toggleCamera} className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors"><Camera size={18} /></button>
-                <label className="p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 cursor-pointer hover:bg-slate-50 transition-colors">
+                <button type="button" onClick={toggleCamera} className="p-2.5 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-300 dark:text-slate-600 hover:text-primary hover:border-primary/30 transition-all" title="Ouvrir la caméra">
+                  <Camera size={18} />
+                </button>
+                <label className="p-2.5 border border-slate-100 dark:border-slate-800 rounded-xl text-slate-300 dark:text-slate-600 cursor-pointer hover:text-primary hover:border-primary/30 transition-all" title="Téléverser une image">
                   <Upload size={18} />
                   <input type="file" className="hidden" onChange={handleFileUpload} accept="image/*" />
                 </label>
-                {photoId && <button type="button" onClick={() => setPhotoId(null)} className="p-2.5 border border-rose-100 text-rose-500 rounded-xl hover:bg-rose-50"><X size={18} /></button>}
+                {photoId && (
+                  <button type="button" onClick={() => setPhotoId(null)} className="p-2.5 border border-rose-50 dark:border-rose-900/20 text-rose-200 hover:text-rose-500 rounded-xl transition-all">
+                    <X size={18} />
+                  </button>
+                )}
               </>
             ) : (
-              <button type="button" onClick={capturePhoto} className="px-6 py-2 bg-primary text-white rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95">Capturer</button>
+              <button type="button" onClick={capturePhoto} className="px-6 py-2 bg-primary text-white rounded-xl font-black text-[10px] uppercase shadow-md active:scale-95 transition-all">
+                Capturer
+              </button>
             )}
           </div>
         </div>

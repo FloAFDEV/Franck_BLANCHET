@@ -6,13 +6,26 @@ self.onmessage = async (e) => {
   const { file, config } = e.data;
 
   try {
-    if (!file.type.startsWith('image/')) {
-      throw new Error("Le fichier n'est pas une image valide.");
+    // 1. Validation de l'entrée
+    if (!file || !(file instanceof Blob)) {
+      throw new Error("Le fichier est manquant ou n'est pas au bon format.");
     }
 
-    const bitmap = await createImageBitmap(file);
+    if (!file.type.startsWith('image/')) {
+      throw new Error("Le format du fichier (" + file.type + ") n'est pas supporté. Veuillez choisir une image.");
+    }
+
+    // 2. Création du Bitmap
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch (err) {
+      throw new Error("Impossible de décoder l'image. Le fichier est peut-être corrompu ou trop volumineux pour votre appareil.");
+    }
+
     const { width, height } = bitmap;
 
+    // 3. Fonction de traitement (Redimensionnement + Compression)
     const processImage = async (maxSize, quality) => {
       let targetWidth = width;
       let targetHeight = height;
@@ -23,22 +36,39 @@ self.onmessage = async (e) => {
         targetHeight = Math.round(height * ratio);
       }
 
+      // Vérification du support OffscreenCanvas
+      if (typeof OffscreenCanvas === 'undefined') {
+        throw new Error("Votre navigateur est trop ancien pour traiter les images en arrière-plan.");
+      }
+
       const canvas = new OffscreenCanvas(targetWidth, targetHeight);
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error("Impossible d'initialiser le processeur graphique.");
+      if (!ctx) {
+        throw new Error("Erreur système : Échec de l'initialisation du processeur d'image.");
+      }
       
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
       
-      return await canvas.convertToBlob({ 
+      const blob = await canvas.convertToBlob({ 
         type: 'image/jpeg', 
         quality 
       });
+
+      if (!blob) {
+        throw new Error("La compression de l'image a échoué. Essayez avec un fichier plus petit.");
+      }
+
+      return blob;
     };
 
+    // 4. Génération des versions HD et Miniature
     const hd = await processImage(config.maxHD, 0.85);
     const thumb = await processImage(config.maxThumb, 0.7);
+
+    // Nettoyage mémoire immédiat
+    bitmap.close();
 
     self.postMessage({
       success: true,
@@ -50,7 +80,7 @@ self.onmessage = async (e) => {
   } catch (error) {
     self.postMessage({ 
       success: false, 
-      error: error.message || "Erreur inconnue lors du traitement de l'image." 
+      error: error.message || "Une erreur technique imprévue est survenue." 
     });
   }
 };
@@ -65,7 +95,7 @@ const getWorker = () => {
       const url = URL.createObjectURL(blob);
       workerInstance = new Worker(url);
     } catch (e) {
-      throw new Error("Le processeur d'images ne peut pas démarrer sur cet appareil.");
+      throw new Error("Le traitement d'image n'est pas disponible sur ce navigateur.");
     }
   }
   return workerInstance;
@@ -84,9 +114,10 @@ export const processAndStoreImage = async (
       const handleMessage = async (e: MessageEvent) => {
         if (e.data.success === undefined) return;
 
+        w.removeEventListener('message', handleMessage);
+
         if (!e.data.success) {
-          w.removeEventListener('message', handleMessage);
-          reject(new Error("Traitement échoué : " + e.data.error));
+          reject(new Error(e.data.error));
           return;
         }
 
@@ -111,11 +142,9 @@ export const processAndStoreImage = async (
             return id;
           });
 
-          w.removeEventListener('message', handleMessage);
           resolve(mediaId);
         } catch (err) {
-          w.removeEventListener('message', handleMessage);
-          reject(new Error("Erreur lors de l'enregistrement en base locale."));
+          reject(new Error("Erreur d'écriture en base de données. L'espace de stockage est peut-être plein."));
         }
       };
 

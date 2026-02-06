@@ -108,7 +108,9 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!confirm("Attention : l'importation va remplacer vos données actuelles. Continuer ?")) {
+    const confirmMessage = "ATTENTION : L'importation va EFFACER TOUTES VOS DONNÉES ACTUELLES (patients, séances, photos) pour les remplacer par celles du fichier.\n\nCette action est irréversible. Souhaitez-vous continuer ?";
+    
+    if (!confirm(confirmMessage)) {
       e.target.value = '';
       return;
     }
@@ -117,28 +119,41 @@ const App: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string);
-        if (data.app !== "OstéoSuivi") throw new Error("Fichier non valide");
+        const content = event.target?.result as string;
+        const data = JSON.parse(content);
+        
+        if (data.app !== "OstéoSuivi") {
+          throw new Error("Ce fichier n'est pas un format de sauvegarde OstéoSuivi valide.");
+        }
 
-        await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
+        await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata, db.media_blobs, db.thumbnails], async () => {
           await db.patients.clear();
           await db.sessions.clear();
           await db.profile.clear();
           await db.media_metadata.clear();
+          await db.media_blobs.clear();
+          await db.thumbnails.clear();
 
           if (data.patients) await db.patients.bulkAdd(data.patients);
           if (data.sessions) await db.sessions.bulkAdd(data.sessions);
           if (data.practitioner) await db.profile.bulkPut(data.practitioner);
           if (data.mediaMeta) await db.media_metadata.bulkAdd(data.mediaMeta);
+          // Note: Les blobs d'images ne sont généralement pas dans le JSON à cause de leur taille, 
+          // sauf s'ils ont été encodés en base64, ce qui n'est pas recommandé pour IndexedDB.
         });
 
-        alert("Importation réussie !");
+        alert("Importation réussie ! L'application va redémarrer.");
         window.location.reload();
       } catch (err) {
         alert("Erreur lors de l'importation : " + (err as Error).message);
       } finally {
         setIsProcessing(false);
+        if (importFileRef.current) importFileRef.current.value = '';
       }
+    };
+    reader.onerror = () => {
+      alert("Le fichier n'a pas pu être lu.");
+      setIsProcessing(false);
     };
     reader.readAsText(file);
   };
@@ -166,7 +181,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-primary" size={40} />
-            <p className="text-sm font-bold uppercase tracking-widest text-slate-500">Traitement en cours...</p>
+            <p className="text-sm font-bold uppercase tracking-widest text-slate-500 text-center">Restauration des données...</p>
           </div>
         </div>
       )}
@@ -198,9 +213,9 @@ const App: React.FC = () => {
           {currentView === 'DASHBOARD' && (
             <>
               <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
-              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer sauvegarde"><Upload size={18} /></button>
-              <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter sauvegarde"><Download size={18} /></button>
-              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres"><Settings size={18} /></button>
+              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde JSON"><Upload size={18} /></button>
+              <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter les données actuelles"><Download size={18} /></button>
+              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres du profil"><Settings size={18} /></button>
             </>
           )}
         </div>
