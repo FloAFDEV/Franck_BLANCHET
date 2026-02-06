@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Gender } from '../types';
-import { Search, User, SortAsc, SortDesc, UserRoundSearch, X, Filter, Download, Plus, Check } from 'lucide-react';
+import { Search, User, SortAsc, SortDesc, UserRoundSearch, X, Plus, Check, LayoutGrid, List, ChevronRight } from 'lucide-react';
 import { getImageUrl, revokeUrl } from '../services/imageService';
 
 interface DashboardProps {
@@ -52,11 +52,50 @@ const PatientCard: React.FC<{ patient: Patient, onSelect: (id: number) => void }
   );
 };
 
+const PatientListItem: React.FC<{ patient: Patient, onSelect: (id: number) => void }> = ({ patient, onSelect }) => {
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let url: string | null = null;
+    if (patient.photoId) getImageUrl(patient.photoId, 'thumb').then(u => { url = u; setThumbUrl(u); });
+    return () => { if (url) revokeUrl(url); };
+  }, [patient.photoId]);
+
+  const genderColor = patient.gender === 'F' ? 'border-pink-200 dark:border-pink-900/40' : 'border-blue-200 dark:border-blue-900/40';
+  const age = useMemo(() => getAge(patient.birthDate), [patient.birthDate]);
+
+  return (
+    <button onClick={() => onSelect(patient.id!)} className="group flex items-center gap-4 p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:shadow-md hover:border-primary transition-all text-left w-full">
+      <div className={`w-10 h-10 rounded-lg overflow-hidden shrink-0 border-2 ${genderColor} flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-300`}>
+        {thumbUrl ? <img src={thumbUrl} alt="" className="w-full h-full object-cover" /> : <User size={16} />}
+      </div>
+      <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 uppercase truncate leading-none">{patient.lastName} {patient.firstName}</span>
+          <span className="text-[10px] text-slate-400 truncate mt-0.5 sm:hidden">{patient.profession}</span>
+        </div>
+        <div className="hidden sm:block min-w-0">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{patient.profession || '—'}</span>
+        </div>
+        <div className="flex items-center gap-2 sm:justify-center">
+          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${patient.gender === 'F' ? 'bg-pink-50 text-pink-500' : 'bg-blue-50 text-blue-500'}`}>{patient.gender}</span>
+          <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">{age} ans</span>
+        </div>
+        <div className="flex items-center justify-end gap-3">
+          <span className="text-[10px] font-semibold text-primary/80 uppercase truncate tracking-tight hidden sm:block">{patient.phone}</span>
+          <ChevronRight size={14} className="text-slate-300 group-hover:text-primary transition-colors" />
+        </div>
+      </div>
+    </button>
+  );
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onExportRequest }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<Gender | 'ALL'>('ALL');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => { db.patients.toArray().then(setPatients); }, []);
 
@@ -86,14 +125,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
         </div>
         
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shrink-0">
+            <button 
+              onClick={() => setViewMode('grid')} 
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Vue Grille"
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')} 
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Vue Liste"
+            >
+              <List size={16} />
+            </button>
+          </div>
+
           <button 
             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} 
-            className="flex-1 sm:flex-none p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors flex justify-center items-center gap-2"
+            className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 hover:text-primary transition-colors flex justify-center items-center gap-2"
             title="Trier par nom"
           >
-            <span className="text-[10px] font-semibold uppercase tracking-wider sm:hidden">Trier</span>
             {sortOrder === 'asc' ? <SortAsc size={18} /> : <SortDesc size={18} />}
           </button>
+
           <button 
             onClick={() => onSelectPatient(-1)} 
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm hover:brightness-105 active:scale-95 transition-all"
@@ -126,8 +182,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPatients.map(p => <PatientCard key={p.id} patient={p} onSelect={onSelectPatient} />)}
+      <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "flex flex-col gap-2"}>
+        {filteredPatients.map(p => (
+          viewMode === 'grid' 
+            ? <PatientCard key={p.id} patient={p} onSelect={onSelectPatient} />
+            : <PatientListItem key={p.id} patient={p} onSelect={onSelectPatient} />
+        ))}
         {filteredPatients.length === 0 && (
           <div className="col-span-full py-20 flex flex-col items-center text-slate-400 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
             <UserRoundSearch size={32} className="opacity-20 mb-4" />
