@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, AlertTriangle, ChevronDown, ChevronUp, SortAsc, SortDesc, BookOpen } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, AlertTriangle, ChevronDown, BookOpen } from 'lucide-react';
 import SessionForm from './SessionForm';
 
 interface PatientDetailProps {
@@ -28,29 +28,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
   const [userInputCode, setUserInputCode] = useState('');
   
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
-  const [sessionSortOrder, setSessionSortOrder] = useState<'desc' | 'asc'>('desc');
 
   const fetchData = async () => {
     const p = await db.patients.get(patientId);
     if (p) setPatient(p);
     
-    let s = await db.sessions
+    const s = await db.sessions
       .where('patientId')
       .equals(patientId)
-      .toArray();
-
-    s.sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      return sessionSortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-    });
-
+      .reverse()
+      .sortBy('date');
     setSessions(s);
   };
 
   useEffect(() => {
     fetchData();
-  }, [patientId, sessionSortOrder]);
+  }, [patientId]);
 
   if (!patient) return <div className="p-8 text-center text-slate-300 font-black uppercase tracking-widest text-[10px]">Chargement dossier...</div>;
 
@@ -83,7 +76,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
 
   const deleteSession = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (confirm('Êtes-vous sûr de vouloir supprimer définitivement ce compte-rendu de séance ?')) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce compte-rendu ? Cette action est irréversible.')) {
       await db.sessions.delete(id);
       fetchData();
     }
@@ -111,14 +104,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                 <button 
                   onClick={onEdit}
                   className="p-4 bg-slate-50 text-slate-400 hover:text-primary hover:bg-primary-soft rounded-[1.5rem] transition-all border border-slate-100"
-                  title="Modifier dossier"
                 >
                   <Edit3 size={20} />
                 </button>
                 <button 
                   onClick={initiateDelete}
                   className="p-4 bg-slate-50 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-[1.5rem] transition-all border border-slate-100"
-                  title="Supprimer dossier"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -199,23 +190,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] flex items-center gap-2">
             Historique <span className="bg-slate-200 text-slate-500 px-3 py-1 rounded-full text-[9px]">{sessions.length}</span>
           </h3>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setSessionSortOrder(sessionSortOrder === 'desc' ? 'asc' : 'desc')}
-              className="p-3 rounded-2xl text-primary bg-primary-soft border border-primary-soft transition-all"
-              title="Trier chronologiquement"
-            >
-              {sessionSortOrder === 'desc' ? <SortDesc size={18} /> : <SortAsc size={18} />}
-            </button>
-            
-            <button 
-              onClick={() => setIsAddingSession(true)}
-              className="text-[10px] font-black uppercase tracking-widest bg-primary text-white px-6 py-3 rounded-2xl hover:opacity-90 shadow-xl shadow-primary-soft transition-all flex items-center gap-2"
-            >
-              <Plus size={16} /> Nouvelle Séance
-            </button>
-          </div>
+          <button 
+            onClick={() => setIsAddingSession(true)}
+            className="text-[10px] font-black uppercase tracking-widest bg-primary text-white px-6 py-3 rounded-2xl hover:opacity-90 shadow-xl shadow-primary-soft transition-all flex items-center gap-2"
+          >
+            <Plus size={16} /> Nouvelle Séance
+          </button>
         </div>
 
         {isAddingSession && (
@@ -236,27 +216,24 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
               return (
                 <div 
                   key={session.id} 
-                  className={`bg-white rounded-[2rem] border transition-all duration-300 ${isExpanded ? 'border-primary ring-4 ring-primary-soft shadow-2xl shadow-primary-soft/20' : 'border-slate-200 shadow-sm hover:border-slate-300'}`}
+                  className={`bg-white rounded-[2rem] border transition-all duration-300 ${isExpanded ? 'border-primary ring-4 ring-primary-soft shadow-xl' : 'border-slate-200 shadow-sm'}`}
                 >
                   <div 
                     onClick={() => toggleSession(session.id!)}
                     className="px-6 py-5 flex items-center justify-between cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-primary text-white shadow-lg shadow-primary-soft' : 'bg-slate-50 text-slate-400'}`}>
+                      <div className={`w-12 h-12 rounded-[1.25rem] flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-primary text-white' : 'bg-slate-50 text-slate-400'}`}>
                         <Calendar size={20} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className="font-black text-slate-800 uppercase text-xs tracking-tight block">
                           {new Date(session.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </span>
-                        {!isExpanded && session.hdlm && (
+                        {!isExpanded && (
                           <p className="text-[10px] text-slate-400 truncate mt-0.5 font-bold uppercase tracking-tighter opacity-60">
-                            {session.hdlm}
+                            {session.hdlm || 'Cliquez pour voir les détails...'}
                           </p>
-                        )}
-                        {isExpanded && (
-                           <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-1 block">Détails de la séance</span>
                         )}
                       </div>
                     </div>
@@ -265,7 +242,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                       <button 
                         onClick={(e) => deleteSession(e, session.id!)}
                         className="p-3 text-slate-200 hover:text-rose-400 hover:bg-rose-50 rounded-xl transition-all"
-                        title="Supprimer cette séance"
+                        title="Supprimer la séance"
                       >
                         <Trash2 size={16} />
                       </button>

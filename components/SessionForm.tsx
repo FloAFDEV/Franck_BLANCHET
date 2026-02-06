@@ -12,7 +12,7 @@ interface SessionFormProps {
 
 const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSuccess }) => {
   const [formData, setFormData] = useState<Partial<Session>>({
-    date: new Date().toISOString().split('T')[0], // Pré-rempli avec aujourd'hui
+    date: new Date().toISOString().split('T')[0],
     hdlm: '',
     tests: '',
     treatment: '',
@@ -32,25 +32,18 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
   };
 
   return (
-    <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-2xl shadow-slate-200/50 animate-in slide-in-from-top-6 duration-300 relative overflow-hidden">
-      {/* Accent bar at the top */}
-      <div className="absolute top-0 left-0 right-0 h-2 bg-primary opacity-20"></div>
-      
+    <div className="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-2xl animate-in slide-in-from-top-6 duration-300">
       <div className="flex items-center justify-between mb-8">
-        <div className="space-y-1">
-          <h3 className="font-black text-xl text-slate-900 uppercase tracking-tighter flex items-center gap-2">
-            <ClipboardList className="text-primary" size={24} />
-            Nouveau Compte-rendu
-          </h3>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Saisie clinique de la séance</p>
-        </div>
+        <h3 className="font-black text-xl text-slate-900 uppercase tracking-tighter flex items-center gap-2">
+          <ClipboardList className="text-primary" size={24} />
+          Nouveau Compte-rendu
+        </h3>
         <button onClick={onCancel} className="p-3 text-slate-300 hover:text-slate-500 hover:bg-slate-100 rounded-2xl transition-all">
           <X size={24} />
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Champ Date - Permet de choisir une date passée */}
         <div className="space-y-2">
           <label className="text-[10px] font-black uppercase tracking-widest text-primary px-2 flex items-center gap-2">
             <Calendar size={12} /> Date de la séance
@@ -62,7 +55,6 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
             value={formData.date}
             onChange={(e) => setFormData({...formData, date: e.target.value})}
           />
-          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight px-2 italic">Par défaut à aujourd'hui, modifiable si séance antérieure.</p>
         </div>
 
         <div className="space-y-2">
@@ -72,7 +64,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
           <textarea 
             required
             rows={2}
-            placeholder="Description des symptômes, motif de consultation, histoire de la maladie..."
+            placeholder="Motif de consultation, histoire de la maladie..."
             className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
             value={formData.hdlm}
             onChange={(e) => setFormData({...formData, hdlm: e.target.value})}
@@ -82,11 +74,11 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-primary px-2 flex items-center gap-2">
-              <Activity size={12} /> Tests & Objectifs
+              <Activity size={12} /> Tests & Diagnostics
             </label>
             <textarea 
               rows={3}
-              placeholder="Constats cliniques, tests ostéopathiques, exclusions..."
+              placeholder="Constats cliniques, tests effectués..."
               className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
               value={formData.tests}
               onChange={(e) => setFormData({...formData, tests: e.target.value})}
@@ -98,7 +90,7 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
             </label>
             <textarea 
               rows={3}
-              placeholder="Techniques utilisées (structurel, fascia, viscéral, crânien...)"
+              placeholder="Techniques utilisées..."
               className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
               value={formData.treatment}
               onChange={(e) => setFormData({...formData, treatment: e.target.value})}
@@ -112,22 +104,20 @@ const SessionForm: React.FC<SessionFormProps> = ({ patientId, onCancel, onSucces
           </label>
           <textarea 
             rows={2}
-            placeholder="Recommandations d'hygiène de vie, exercices à domicile..."
+            placeholder="Recommandations..."
             className="w-full p-5 bg-slate-50 text-slate-700 border border-slate-100 rounded-[1.5rem] focus:ring-4 focus:ring-primary-soft focus:border-primary focus:bg-white focus:outline-none placeholder:text-slate-300 font-medium leading-relaxed transition-all"
             value={formData.advice}
             onChange={(e) => setFormData({...formData, advice: e.target.value})}
           />
         </div>
 
-        <div className="flex gap-4 pt-4">
-          <button
-            type="submit"
-            className="flex-1 py-5 bg-primary text-white font-black text-xs uppercase tracking-widest rounded-[1.5rem] hover:opacity-90 transition-all shadow-xl shadow-primary-soft active:scale-95 flex items-center justify-center gap-3"
-          >
-            <Save size={20} />
-            Enregistrer la séance
-          </button>
-        </div>
+        <button
+          type="submit"
+          className="w-full py-5 bg-primary text-white font-black text-xs uppercase tracking-widest rounded-[1.5rem] hover:opacity-90 transition-all shadow-xl shadow-primary-soft active:scale-95 flex items-center justify-center gap-3"
+        >
+          <Save size={20} />
+          Enregistrer la séance
+        </button>
       </form>
     </div>
   );
