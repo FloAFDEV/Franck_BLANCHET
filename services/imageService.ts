@@ -1,13 +1,15 @@
 
 import { db } from '../db';
 
-// Inline worker code as a string to avoid transpilation and path resolution issues in different environments.
-// Browsers cannot natively execute .ts files, so loading a Worker from a .ts path often fails.
 const workerCode = `
 self.onmessage = async (e) => {
   const { file, config } = e.data;
 
   try {
+    if (!file.type.startsWith('image/')) {
+      throw new Error("Le fichier n'est pas une image valide.");
+    }
+
     const bitmap = await createImageBitmap(file);
     const { width, height } = bitmap;
 
@@ -23,7 +25,7 @@ self.onmessage = async (e) => {
 
       const canvas = new OffscreenCanvas(targetWidth, targetHeight);
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error("Canvas context error");
+      if (!ctx) throw new Error("Impossible d'initialiser le processeur graphique.");
       
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -46,7 +48,10 @@ self.onmessage = async (e) => {
     });
 
   } catch (error) {
-    self.postMessage({ success: false, error: error.message || "Unknown worker error" });
+    self.postMessage({ 
+      success: false, 
+      error: error.message || "Erreur inconnue lors du traitement de l'image." 
+    });
   }
 };
 `;
@@ -60,8 +65,7 @@ const getWorker = () => {
       const url = URL.createObjectURL(blob);
       workerInstance = new Worker(url);
     } catch (e) {
-      console.error("Failed to initialize ImageWorker", e);
-      throw new Error("Impossible d'initialiser le processeur d'images.");
+      throw new Error("Le processeur d'images ne peut pas démarrer sur cet appareil.");
     }
   }
   return workerInstance;
@@ -78,18 +82,17 @@ export const processAndStoreImage = async (
       const w = getWorker();
       
       const handleMessage = async (e: MessageEvent) => {
-        if (e.data.success === undefined) return; // Ignore irrelevant messages
+        if (e.data.success === undefined) return;
 
         if (!e.data.success) {
           w.removeEventListener('message', handleMessage);
-          reject(new Error(e.data.error));
+          reject(new Error("Traitement échoué : " + e.data.error));
           return;
         }
 
         const { hd, thumb, dimensions } = e.data;
 
         try {
-          // Transaction atomique sur le thread principal pour garantir l'intégrité des données
           const mediaId = await db.transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
             const id = await db.media_metadata.add({
               patientId,
@@ -112,7 +115,7 @@ export const processAndStoreImage = async (
           resolve(mediaId);
         } catch (err) {
           w.removeEventListener('message', handleMessage);
-          reject(err);
+          reject(new Error("Erreur lors de l'enregistrement en base locale."));
         }
       };
 
@@ -134,7 +137,6 @@ export const getImageUrl = async (mediaId: number, type: 'hd' | 'thumb' = 'thumb
     if (!entry || !entry.data) return null;
     return URL.createObjectURL(entry.data);
   } catch (err) {
-    console.error("Failed to get image URL from DB", err);
     return null;
   }
 };
@@ -143,8 +145,6 @@ export const revokeUrl = (url: string | null) => {
   if (url && url.startsWith('blob:')) {
     try {
       URL.revokeObjectURL(url);
-    } catch (e) {
-      // Ignore silently if revocation fails
-    }
+    } catch (e) {}
   }
 };
