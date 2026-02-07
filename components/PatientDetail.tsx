@@ -84,12 +84,15 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
 
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => {
+      const sessionDate = new Date(s.date);
+      const yearStr = sessionDate.getFullYear().toString();
+      
       const matchesSearch = s.hdlm.toLowerCase().includes(sessionSearch.toLowerCase()) || 
-                           s.treatment.toLowerCase().includes(sessionSearch.toLowerCase());
+                           s.treatment.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+                           yearStr.includes(sessionSearch);
       
       if (!matchesSearch) return false;
       if (dateFilter === 'ALL') return true;
-      const sessionDate = new Date(s.date);
       const now = new Date();
       
       if (dateFilter === 'MONTH') {
@@ -281,7 +284,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input 
                 type="text" 
-                placeholder="Filtrer dans les motifs ou traitements..." 
+                placeholder="Filtrer par motif, traitement ou année (ex: 2024)..." 
                 className="w-full pl-9 pr-8 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-primary"
                 value={sessionSearch}
                 onChange={e => setSessionSearch(e.target.value)}
