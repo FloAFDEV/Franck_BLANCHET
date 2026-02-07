@@ -98,7 +98,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
   const [search, setSearch] = useState('');
   const [genderFilter, setGenderFilter] = useState<Gender | 'ALL'>('ALL');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   useEffect(() => { db.patients.toArray().then(setPatients); }, []);
 
