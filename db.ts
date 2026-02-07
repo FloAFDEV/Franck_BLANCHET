@@ -1,8 +1,8 @@
 
-import { Dexie, type Table } from 'dexie';
+import Dexie, { type Table } from 'dexie';
 import { Patient, Session, Practitioner, MediaMetadata, MediaBlob } from './types';
 
-// Use named import { Dexie } from 'dexie' to ensure correct class inheritance and type resolution for Dexie methods.
+// Use default import for Dexie to ensure correct class inheritance and type resolution for Dexie methods.
 export class OsteoDB extends Dexie {
   patients!: Table<Patient, number>;
   sessions!: Table<Session, number>;

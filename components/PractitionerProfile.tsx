@@ -9,6 +9,8 @@ interface PractitionerProfileProps {
   onCancel: () => void;
 }
 
+const DUCK_AVATAR = "https://raw.githubusercontent.com/stackblitz/stackblitz-images/main/duck.png";
+
 const THEME_COLORS = [
   { name: 'Teal Médical', value: '#14b8a6' },
   { name: 'Indigo Profond', value: '#4338ca' },
@@ -154,13 +156,10 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation du code : minimum 4 caractères si renseigné
     if (formData.password && formData.password.length < 4) {
       alert("Sécurité insuffisante : le code d'accès doit comporter au moins 4 caractères.");
       return;
     }
-
     await db.profile.put(formData);
     onSuccess();
   };
@@ -189,18 +188,12 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
   const handleClearPassword = () => {
     if (!originalPassword) return;
-
-    // Étape 1 : Demander le code actuel
     const verify = prompt("Veuillez saisir votre code actuel pour autoriser la suppression :");
-    
-    if (verify === null) return; // Annulation
-
+    if (verify === null) return;
     if (verify !== originalPassword) {
       alert("Code incorrect. La suppression a été refusée pour votre sécurité.");
       return;
     }
-
-    // Étape 2 : Confirmation finale
     if (confirm("Confirmation : Voulez-vous vraiment désactiver la protection par code ? L'accès à vos données patients ne sera plus sécurisé au démarrage de l'application.")) {
       setFormData({ ...formData, password: '' });
       setOriginalPassword('');
@@ -222,7 +215,6 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
         />
       )}
 
-      {/* Info Panel: Local First */}
       <div className="bg-primary/5 border border-primary/20 p-6 rounded-[2rem] flex flex-col sm:flex-row gap-5 items-start sm:items-center shadow-sm">
         <div className="p-3 bg-primary/10 text-primary rounded-2xl"><ShieldCheck size={28} /></div>
         <div className="flex-1 space-y-1">
@@ -248,11 +240,18 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 sm:p-12 space-y-10">
-          {/* Avatar Section */}
           <div className="flex flex-col items-center gap-6">
             <div className="relative group">
-              <div className="w-36 h-36 rounded-[2.5rem] border-[6px] border-white dark:border-slate-800 shadow-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                {formData.photo ? <img src={formData.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle className="text-slate-300" size={64} />}
+              {/* Conteneur d'avatar avec fond dynamique si c'est le canard par défaut */}
+              <div 
+                className={`w-36 h-36 rounded-[2.5rem] border-[6px] border-white dark:border-slate-800 shadow-2xl overflow-hidden flex items-center justify-center transition-colors duration-300 ${formData.photo === DUCK_AVATAR ? 'p-4' : 'bg-slate-100 dark:bg-slate-800'}`}
+                style={{ backgroundColor: formData.photo === DUCK_AVATAR ? formData.themeColor : undefined }}
+              >
+                {formData.photo ? (
+                  <img src={formData.photo} alt="" className={`w-full h-full ${formData.photo === DUCK_AVATAR ? 'object-contain' : 'object-cover'}`} />
+                ) : (
+                  <UserCircle className="text-slate-300" size={64} />
+                )}
               </div>
               <label className="absolute -bottom-2 -right-2 p-3 bg-primary text-white rounded-2xl shadow-xl cursor-pointer hover:scale-110 transition-transform active:scale-95">
                 <Camera size={20} />
@@ -262,7 +261,6 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Cliquez sur l'icône pour modifier la photo</p>
           </div>
 
-          {/* Identity */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">Prénom</label>
@@ -274,7 +272,6 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
             </div>
           </div>
 
-          {/* Security */}
           <div className="space-y-1.5">
             <div className="flex justify-between items-center px-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -314,13 +311,15 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
             )}
           </div>
 
-          {/* Personalization */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-8 pt-4">
             <div className="space-y-4">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couleur d'accentuation</label>
               <div className="flex gap-4">
                 {THEME_COLORS.map(c => (
-                  <button key={c.value} type="button" onClick={() => setFormData({ ...formData, themeColor: c.value })} className={`w-10 h-10 rounded-2xl transition-all shadow-lg ${formData.themeColor === c.value ? 'ring-4 ring-offset-4 ring-primary' : 'hover:scale-110 opacity-80 hover:opacity-100'}`} style={{ backgroundColor: c.value }}>
+                  <button key={c.value} type="button" onClick={() => {
+                    setFormData({ ...formData, themeColor: c.value });
+                    document.documentElement.style.setProperty('--primary', c.value);
+                  }} className={`w-10 h-10 rounded-2xl transition-all shadow-lg ${formData.themeColor === c.value ? 'ring-4 ring-offset-4 ring-primary' : 'hover:scale-110 opacity-80 hover:opacity-100'}`} style={{ backgroundColor: c.value }}>
                     {formData.themeColor === c.value && <Check size={18} className="mx-auto text-white" strokeWidth={3} />}
                   </button>
                 ))}
@@ -333,7 +332,6 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
             </button>
           </div>
 
-          {/* Backup Action */}
           <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={handleExportData} className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center gap-3 text-slate-400 hover:text-primary hover:border-primary transition-all group">
               <Download size={20} className="group-hover:translate-y-0.5 transition-transform" />
