@@ -6,13 +6,13 @@ self.onmessage = async (e) => {
   const { file, config } = e.data;
 
   try {
-    if (!file || !(file instanceof Blob)) throw new Error("Format invalide.");
+    if (!file) throw new Error("Aucun fichier d'image n'a été fourni.");
     
     let bitmap;
     try {
       bitmap = await createImageBitmap(file);
     } catch (err) {
-      throw new Error("Échec du décodage d'image.");
+      throw new Error("Le format de l'image n'est pas supporté ou le fichier est corrompu.");
     }
 
     const { width, height } = bitmap;
@@ -27,18 +27,18 @@ self.onmessage = async (e) => {
         targetHeight = Math.round(height * ratio);
       }
 
-      // Fallback sécurisé pour OffscreenCanvas
       if (typeof OffscreenCanvas !== 'undefined') {
         const canvas = new OffscreenCanvas(targetWidth, targetHeight);
         const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error("Context error");
+        if (!ctx) throw new Error("Erreur d'initialisation du moteur graphique local.");
+        
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+        
         return await canvas.convertToBlob({ type: 'image/jpeg', quality });
       } else {
-        // Fallback minimaliste (peut échouer en worker pur sans DOM)
-        throw new Error("OffscreenCanvas non supporté.");
+        throw new Error("Navigateur incompatible : 'OffscreenCanvas' manquant.");
       }
     };
 
@@ -49,7 +49,7 @@ self.onmessage = async (e) => {
     self.postMessage({ success: true, hd, thumb, dimensions: { width, height } });
 
   } catch (error) {
-    self.postMessage({ success: false, error: error.message || "Erreur worker." });
+    self.postMessage({ success: false, error: error.message });
   }
 };
 `;
@@ -72,32 +72,35 @@ export const processAndStoreImage = async (
   name: string = "photo"
 ): Promise<number> => {
   return new Promise((resolve, reject) => {
-    try {
-      const w = getWorker();
-      const handleMessage = async (e: MessageEvent) => {
-        if (e.data.success === undefined) return;
-        w.removeEventListener('message', handleMessage);
-        if (!e.data.success) { reject(new Error(e.data.error)); return; }
+    const w = getWorker();
+    const handleMessage = async (e: MessageEvent) => {
+      if (e.data.success === undefined) return;
+      w.removeEventListener('message', handleMessage);
+      
+      if (!e.data.success) { 
+        reject(new Error(e.data.error)); 
+        return; 
+      }
 
-        const { hd, thumb, dimensions } = e.data;
-        try {
-          // Perform atomic database transaction to store media metadata and blobs
-          // Fix: Cast db to any to access the transaction method inherited from Dexie base class.
-          const mediaId = await (db as any).transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
-            const id = await db.media_metadata.add({
-              patientId, sessionId, name, mimeType: 'image/jpeg',
-              width: dimensions.width, height: dimensions.height, version: 1, processedAt: Date.now()
-            });
-            await db.media_blobs.add({ mediaId: id, data: hd });
-            await db.thumbnails.add({ mediaId: id, data: thumb });
-            return id;
+      const { hd, thumb, dimensions } = e.data;
+      try {
+        // Correction: 'transaction' est une méthode héritée de Dexie, disponible sur l'instance db.
+        const mediaId = await db.transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
+          const id = await db.media_metadata.add({
+            patientId, sessionId, name, mimeType: 'image/jpeg',
+            width: dimensions.width, height: dimensions.height, version: 1, processedAt: Date.now()
           });
-          resolve(mediaId);
-        } catch (err) { reject(new Error("Erreur DB.")); }
-      };
-      w.addEventListener('message', handleMessage);
-      w.postMessage({ file, config: { maxHD: 1200, maxThumb: 250 } });
-    } catch (err) { reject(err); }
+          await db.media_blobs.add({ mediaId: id, data: hd });
+          await db.thumbnails.add({ mediaId: id, data: thumb });
+          return id;
+        });
+        resolve(mediaId);
+      } catch (err) { 
+        reject(new Error("Erreur de stockage en base de données.")); 
+      }
+    };
+    w.addEventListener('message', handleMessage);
+    w.postMessage({ file, config: { maxHD: 1200, maxThumb: 250 } });
   });
 };
 

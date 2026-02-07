@@ -1,7 +1,7 @@
 {
-  "name": "OstéoSuivi - Gestion de Patients",
-  "description": "Application de gestion de dossiers patients pour ostéopathes avec stockage local IndexedDB, capture photo et suivi de séances.",
   "requestFramePermissions": [
     "camera"
-  ]
+  ],
+  "name": "",
+  "description": ""
 }
