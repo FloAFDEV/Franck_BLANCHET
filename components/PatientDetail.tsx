@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones, Info } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones, Info, Filter, X } from 'lucide-react';
 import SessionForm from './SessionForm';
 import { getImageUrl, revokeUrl } from '../services/imageService';
 
@@ -66,6 +66,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
   const [isAddingSession, setIsAddingSession] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
+  
+  // Nouveaux états pour le filtrage
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState<'ALL' | 'MONTH' | 'YEAR'>('ALL');
 
   const fetchData = useCallback(async () => {
     const p = await db.patients.get(patientId); 
@@ -78,6 +82,28 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
   }, [patientId]);
 
   useEffect(() => { fetchData(); return () => { if (photoUrl) revokeUrl(photoUrl); }; }, [fetchData]);
+
+  // Filtrage des séances
+  const filteredSessions = useMemo(() => {
+    return sessions.filter(s => {
+      const matchesSearch = s.hdlm.toLowerCase().includes(sessionSearch.toLowerCase()) || 
+                           s.treatment.toLowerCase().includes(sessionSearch.toLowerCase());
+      
+      if (!matchesSearch) return false;
+
+      if (dateFilter === 'ALL') return true;
+      const sessionDate = new Date(s.date);
+      const now = new Date();
+      
+      if (dateFilter === 'MONTH') {
+        return sessionDate.getMonth() === now.getMonth() && sessionDate.getFullYear() === now.getFullYear();
+      }
+      if (dateFilter === 'YEAR') {
+        return sessionDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [sessions, sessionSearch, dateFilter]);
 
   const stats = useMemo(() => {
     const total = sessions.length;
@@ -109,14 +135,20 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     setIsAddingSession(true);
   };
 
-  // Bordure header ultra-marquée
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: number) => {
+    e.stopPropagation();
+    if (confirm("Supprimer cette séance de l'historique ? Cette action est irréversible.")) {
+      await db.sessions.delete(sessionId);
+      fetchData();
+    }
+  };
+
   const genderBorder = patient.gender === 'F' 
     ? 'border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.3)]' 
     : 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
   return (
     <div className="space-y-12 pb-24 animate-in fade-in duration-300">
-      {/* HEADER PATIENT : Stats et Identité */}
       <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col lg:flex-row gap-10 items-center lg:items-start">
         <div className={`w-44 h-44 sm:w-52 sm:h-52 rounded-[2.5rem] border-[5px] ${genderBorder} bg-slate-50 dark:bg-slate-800 overflow-hidden shrink-0 shadow-inner flex items-center justify-center text-slate-100`}>
           {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <User size={56} />}
@@ -135,10 +167,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                 <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <Calendar size={14} /> {new Date(patient.birthDate).toLocaleDateString()}
                 </span>
-                {patient.isSmoker && <span className="px-3 py-1.5 bg-amber-50 text-amber-600 dark:bg-amber-900/30 rounded-xl text-[10px] font-black uppercase tracking-widest">FUMEUR</span>}
               </div>
               
-              {/* COMPTEUR DE SÉANCES DANS LE HEADER */}
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 mt-8 p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100/50 dark:border-slate-800/50">
                 <div className="flex flex-col gap-1">
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Dernière Séance</span>
@@ -177,7 +207,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
       </div>
 
       <div className="space-y-12">
-        {/* SECTION SUIVI ET HABITUDES : Grille 3 colonnes optimisée */}
         <div className="space-y-6">
           <SectionHeader icon={Info} title="Suivi & Habitudes de vie" />
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -185,7 +214,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Activité Sportive</p>
               <p className="text-sm text-slate-700 dark:text-slate-200 font-semibold">{patient.physicalActivity || "Aucune activité déclarée"}</p>
             </div>
-            
             <div className="p-6 bg-primary-soft border border-primary-border rounded-[2rem] shadow-sm flex flex-col justify-center">
               <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest px-1">
                 <Stethoscope size={16} /> Médecin Traitant
@@ -193,26 +221,15 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
               <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{patient.gpName || "Non renseigné"}</p>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-1">{patient.gpCity}</p>
             </div>
-            
             <div className="p-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-[2rem] shadow-sm flex flex-col justify-center">
               <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest px-1">
                 <HeartPulse size={16} /> Traitement actuel
               </div>
               <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic font-medium">{patient.currentTreatment || "Pas de traitement en cours"}</p>
             </div>
-            
-            {patient.gender === 'F' && patient.contraception && (
-              <div className="p-6 bg-pink-50 dark:bg-pink-900/20 border border-pink-100 dark:border-pink-900/40 rounded-[2rem] shadow-sm flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-pink-600 uppercase tracking-widest px-1">
-                  <ClipboardList size={16} /> Contraception
-                </div>
-                <p className="text-xs text-pink-900 dark:text-pink-200 italic font-medium">{patient.contraception}</p>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* SECTION ANTÉCÉDENTS : Grille agile */}
         <div className="space-y-6">
           <SectionHeader icon={History} title="Antécédents & Notes Médicales" />
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -226,13 +243,40 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         </div>
       </div>
 
-      {/* HISTORIQUE DES SÉANCES */}
       <section className="pt-12 border-t border-slate-100 dark:border-slate-800 space-y-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
-          <SectionHeader icon={BookOpen} title="Historique des consultations (HDLM)" />
-          <button onClick={() => { setEditingSession(null); setIsAddingSession(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:brightness-105 active:scale-95 transition-all">
-            <Plus size={18} /> Nouvelle Séance
-          </button>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+            <SectionHeader icon={BookOpen} title="Historique des consultations (HDLM)" />
+            <button onClick={() => { setEditingSession(null); setIsAddingSession(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:brightness-105 active:scale-95 transition-all">
+              <Plus size={18} /> Nouvelle Séance
+            </button>
+          </div>
+
+          {/* BARRE DE FILTRAGE DES SÉANCES */}
+          <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input 
+                type="text" 
+                placeholder="Filtrer dans les motifs ou traitements..." 
+                className="w-full pl-9 pr-8 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:border-primary"
+                value={sessionSearch}
+                onChange={e => setSessionSearch(e.target.value)}
+              />
+              {sessionSearch && <button onClick={() => setSessionSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-rose-500"><X size={12} /></button>}
+            </div>
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              {(['ALL', 'MONTH', 'YEAR'] as const).map(f => (
+                <button 
+                  key={f}
+                  onClick={() => setDateFilter(f)}
+                  className={`px-4 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all ${dateFilter === f ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  {f === 'ALL' ? 'Toutes' : f === 'MONTH' ? 'Ce mois' : 'Cette année'}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {isAddingSession && (
@@ -245,7 +289,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         )}
 
         <div className="space-y-5">
-          {sessions.length > 0 ? sessions.map(s => {
+          {filteredSessions.length > 0 ? filteredSessions.map(s => {
             const open = expandedSessions.has(s.id!);
             return (
               <div key={s.id} className={`bg-white dark:bg-slate-900 border rounded-[2rem] transition-all duration-300 ${open ? 'border-primary shadow-2xl scale-[1.01]' : 'border-slate-100 dark:border-slate-800 shadow-sm hover:border-slate-200'}`}>
@@ -259,6 +303,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                   </div>
                   <div className="flex items-center gap-4">
                     <button onClick={(e) => handleEditSession(e, s)} className="p-2.5 text-slate-300 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all" title="Modifier"><Edit3 size={16} /></button>
+                    <button onClick={(e) => handleDeleteSession(e, s.id!)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all" title="Supprimer"><Trash2 size={16} /></button>
                     <ChevronDown size={24} className={`text-slate-300 transition-transform duration-500 ${open ? 'rotate-180 text-primary' : ''}`} />
                   </div>
                 </div>
@@ -287,7 +332,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           }) : (
             <div className="py-16 flex flex-col items-center text-slate-400 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem]">
               <History size={32} className="opacity-10 mb-4" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em]">Aucune séance enregistrée</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                {sessionSearch || dateFilter !== 'ALL' ? 'Aucun résultat pour ces filtres' : 'Aucune séance enregistrée'}
+              </p>
             </div>
           )}
         </div>

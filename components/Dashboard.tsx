@@ -30,7 +30,6 @@ const PatientCard: React.FC<{ patient: Patient, onSelect: (id: number) => void }
     return () => { if (url) revokeUrl(url); };
   }, [patient.photoId]);
 
-  // Bordures ultra-visibles avec halo
   const genderStyles = patient.gender === 'F' 
     ? 'border-pink-500 shadow-[0_0_12px_rgba(236,72,153,0.3)] dark:border-pink-400' 
     : 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)] dark:border-blue-400';
@@ -106,7 +105,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
   const filteredPatients = useMemo(() => {
     return patients
       .filter(p => {
-        const matchesSearch = `${p.firstName} ${p.lastName} ${p.profession} ${p.phone}`.toLowerCase().includes(search.toLowerCase());
+        // Recherche étendue incluant l'adresse
+        const searchTerms = [p.firstName, p.lastName, p.profession, p.phone, p.address].join(' ').toLowerCase();
+        const matchesSearch = searchTerms.includes(search.toLowerCase());
         const matchesGender = genderFilter === 'ALL' || p.gender === genderFilter;
         return matchesSearch && matchesGender;
       })
@@ -120,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
             type="text" 
-            placeholder="Rechercher par nom, métier ou mobile..." 
+            placeholder="Rechercher nom, métier, adresse, mobile..." 
             className="w-full pl-10 pr-10 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:border-primary text-sm shadow-sm transition-all" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
@@ -130,34 +131,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
         
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1 shrink-0">
-            <button 
-              onClick={() => setViewMode('grid')} 
-              className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-              title="Grille"
-            >
+            <button onClick={() => setViewMode('grid')} className={`p-2 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`} title="Grille">
               <LayoutGrid size={18} />
             </button>
-            <button 
-              onClick={() => setViewMode('list')} 
-              className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-              title="Liste"
-            >
+            <button onClick={() => setViewMode('list')} className={`p-2 rounded-xl transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`} title="Liste">
               <List size={18} />
             </button>
           </div>
-
-          <button 
-            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} 
-            className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-500 hover:text-primary shadow-sm transition-colors flex justify-center items-center"
-            title="Trier"
-          >
+          <button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-500 hover:text-primary shadow-sm transition-colors flex justify-center items-center" title="Trier">
             {sortOrder === 'asc' ? <SortAsc size={20} /> : <SortDesc size={20} />}
           </button>
-
-          <button 
-            onClick={() => onSelectPatient(-1)} 
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider shadow-lg hover:brightness-105 active:scale-95 transition-all"
-          >
+          <button onClick={() => onSelectPatient(-1)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider shadow-lg hover:brightness-105 active:scale-95 transition-all">
             <Plus size={18} /> <span className="sm:inline">Nouveau</span>
           </button>
         </div>
@@ -166,20 +150,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onSelectPatient, isBackupDue, onE
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1.5 rounded-2xl w-full sm:w-auto">
           {(['ALL', 'M', 'F'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setGenderFilter(f)}
-              className={`flex-1 sm:flex-none px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                genderFilter === f 
-                  ? 'bg-white dark:bg-slate-700 text-primary shadow-md border border-slate-200 dark:border-slate-600' 
-                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600'
-              }`}
-            >
+            <button key={f} onClick={() => setGenderFilter(f)} className={`flex-1 sm:flex-none px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${genderFilter === f ? 'bg-white dark:bg-slate-700 text-primary shadow-md border border-slate-200 dark:border-slate-600' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600'}`}>
               {f === 'ALL' ? 'Tous' : f === 'M' ? 'Hommes' : 'Femmes'}
             </button>
           ))}
         </div>
-        
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] px-1">
           {filteredPatients.length} patient{filteredPatients.length > 1 ? 's' : ''}
         </div>

@@ -99,7 +99,7 @@ const App: React.FC = () => {
   };
 
   const handleExportData = async () => {
-    if (!confirm("Voulez-vous générer une sauvegarde de toutes vos données (patients, séances, photos) ?")) return;
+    if (!confirm("Exporter toutes vos données ? Le fichier contiendra les dossiers patients, les séances et les photos.")) return;
     setIsProcessing(true);
     try {
       const patients = await db.patients.toArray();
@@ -126,7 +126,7 @@ const App: React.FC = () => {
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!confirm("ATTENTION : L'importation va supprimer TOUTES les données actuelles de votre application pour les remplacer par celles du fichier. Continuer ?")) {
+    if (!confirm("ATTENTION : L'importation va supprimer TOUTES les données actuelles de l'application (Patients, Séances, Photos) pour les remplacer par celles du fichier. Continuer ?")) {
       e.target.value = '';
       return;
     }
@@ -137,7 +137,7 @@ const App: React.FC = () => {
         const data = JSON.parse(event.target?.result as string);
         if (data.app !== "OstéoSuivi") throw new Error("Le fichier n'est pas une sauvegarde valide d'OstéoSuivi.");
         
-        // Fix: Use transaction method from db instance, ensuring it is recognized via proper inheritance from Dexie
+        // Fix: Use transaction which is correctly available on the db instance after inheritance fix in db.ts
         await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
           await db.patients.clear(); 
           await db.sessions.clear(); 
@@ -148,7 +148,7 @@ const App: React.FC = () => {
           if (data.practitioner) await db.profile.bulkPut(data.practitioner);
           if (data.mediaMeta) await db.media_metadata.bulkAdd(data.mediaMeta);
         });
-        alert("Données importées avec succès. L'application va redémarrer.");
+        alert("Import réussi. L'application va redémarrer.");
         window.location.reload();
       } catch (err) { alert("Erreur import: " + (err as Error).message); } finally { setIsProcessing(false); }
     };
@@ -208,19 +208,17 @@ const App: React.FC = () => {
           {currentView === 'DASHBOARD' && (
             <>
               <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
-              {/* Icône Import : Flèche vers le bas (entre dans l'app) */}
+              {/* Icône Import : Download (Flèche Bas) */}
               <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde">
                 <Download size={18} />
               </button>
-              
               <div className="relative">
-                {/* Icône Export : Flèche vers le haut (sort de l'app) */}
+                {/* Icône Export : Upload (Flèche Haut) */}
                 <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter une sauvegarde">
                   <Upload size={18} />
                 </button>
                 {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />}
               </div>
-              
               <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary" title="Profil & Réglages">
                 <Settings size={18} />
               </button>
