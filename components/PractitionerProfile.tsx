@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../db';
 import { Practitioner } from '../types';
-import { Camera, Upload, Save, Check, UserCircle, Palette, Lock, Eye, EyeOff, Moon, Sun, Settings, X, Crop, ZoomIn, ZoomOut, Info, BookOpen, Shield, ChevronDown } from 'lucide-react';
+import { Camera, Upload, Check, UserCircle, Palette, Moon, Sun, Settings, X, ChevronDown, BookOpen, Shield, ZoomIn, ZoomOut, Eye, EyeOff } from 'lucide-react';
 
 interface PractitionerProfileProps {
   onSuccess: () => void;
@@ -10,9 +10,15 @@ interface PractitionerProfileProps {
 }
 
 const THEME_COLORS = [
-  { name: 'Teal Médical', value: '#14b8a6' },
-  { name: 'Orange Amber', value: '#f59e0b' },
-  { name: 'Gris Professionnel', value: '#475569' }
+  { name: 'Émeraude', value: '#14b8a6' },
+  { name: 'Bleu', value: '#2563eb' },
+  { name: 'Indigo', value: '#4f46e5' },
+  { name: 'Violet', value: '#7c3aed' },
+  { name: 'Rose', value: '#db2777' },
+  { name: 'Rouge', value: '#e11d48' },
+  { name: 'Orange', value: '#ea580c' },
+  { name: 'Ambre', value: '#d97706' },
+  { name: 'Ardoise', value: '#475569' }
 ];
 
 const CollapsibleSection: React.FC<{ icon: any, title: string, children: React.ReactNode }> = ({ icon: Icon, title, children }) => {
@@ -22,7 +28,7 @@ const CollapsibleSection: React.FC<{ icon: any, title: string, children: React.R
       <button 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-100 transition-colors"
+        className="w-full flex items-center justify-between p-4 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-3">
           <Icon size={16} className="text-primary" />
@@ -169,7 +175,7 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
           <div className="flex flex-col items-center gap-4">
-            <div className="group relative w-28 h-28 rounded-2xl border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-slate-800" role="img" aria-label="Avatar du praticien">
+            <div className="group relative w-24 h-24 rounded-2xl border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-slate-800" role="img" aria-label="Avatar du praticien">
               {formData.photo ? <img src={formData.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle className="text-slate-300" size={48} />}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <label className="cursor-pointer text-white flex flex-col items-center gap-1">
@@ -179,11 +185,6 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
                 </label>
               </div>
             </div>
-            <button type="button" className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline" onClick={() => {
-              const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*';
-              f.onchange = handleFileChange;
-              f.click();
-            }} aria-label="Changer la photo de profil">Sélectionner une photo</button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -205,20 +206,33 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
             </div>
           </div>
 
-          <div className="flex justify-between items-end">
-            <div className="space-y-3">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couleur du cabinet</label>
-              <div className="flex gap-3">
-                {THEME_COLORS.map(c => (
-                  <button key={c.value} type="button" onClick={() => setFormData({ ...formData, themeColor: c.value })} className={`w-8 h-8 rounded-lg border-2 transition-all ${formData.themeColor === c.value ? 'border-slate-900 dark:border-white scale-110 shadow-md' : 'border-transparent opacity-50'}`} style={{ backgroundColor: c.value }}>
-                    {formData.themeColor === c.value && <Check size={14} className="mx-auto text-white" strokeWidth={3} />}
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-4">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Thème visuel</label>
+            <div className="flex flex-wrap gap-2.5">
+              {THEME_COLORS.map(c => (
+                <button 
+                  key={c.value} 
+                  type="button" 
+                  title={c.name}
+                  onClick={() => setFormData({ ...formData, themeColor: c.value })} 
+                  className={`w-9 h-9 rounded-xl border-2 transition-all relative flex items-center justify-center ${formData.themeColor === c.value ? 'border-slate-900 dark:border-white scale-110 shadow-md ring-2 ring-primary/20' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`} 
+                  style={{ backgroundColor: c.value }}
+                >
+                  {formData.themeColor === c.value && <Check size={16} className="text-white" strokeWidth={3} />}
+                </button>
+              ))}
             </div>
-            <button type="button" onClick={() => setFormData({ ...formData, isDarkMode: !formData.isDarkMode })} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
-              {formData.isDarkMode ? <Moon size={14} /> : <Sun size={14} />} {formData.isDarkMode ? 'Sombre' : 'Clair'}
-            </button>
+            <div className="pt-2">
+              <button type="button" onClick={() => setFormData({ ...formData, isDarkMode: !formData.isDarkMode })} className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
+                <span className="flex items-center gap-2">
+                  {formData.isDarkMode ? <Moon size={14} /> : <Sun size={14} />} 
+                  Mode {formData.isDarkMode ? 'Sombre' : 'Clair'}
+                </span>
+                <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.isDarkMode ? 'bg-primary' : 'bg-slate-200'}`}>
+                   <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${formData.isDarkMode ? 'left-4.5' : 'left-0.5'}`} />
+                </div>
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -252,7 +266,7 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
         <CollapsibleSection icon={Shield} title="Conditions & Mentions Légales">
           <div className="space-y-4">
-            <p><strong>Version :</strong> 3.5 "Pure Privacy Edition"</p>
+            <p><strong>Version :</strong> 3.6 "Pure Privacy Edition"</p>
             <p><strong>Usage :</strong> Cette application est un outil d'aide à la gestion de cabinet. Le praticien est seul responsable du respect du secret médical et de la protection des données de santé de ses patients.</p>
             <p><strong>Responsabilité :</strong> L'éditeur d'OstéoSuivi ne collecte AUCUNE donnée. Par conséquent, il décline toute responsabilité en cas de perte de données liée à une panne matérielle, un effacement du cache du navigateur ou une absence de sauvegarde manuelle par l'utilisateur.</p>
             <p><strong>RGPD :</strong> L'application est conforme par conception (Privacy by Design) car elle ne comporte aucun serveur tiers, aucun tracker et aucun transfert de données.</p>

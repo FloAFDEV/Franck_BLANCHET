@@ -7,7 +7,7 @@ import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
 import LoginView from './components/LoginView';
-import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2, Bell, X, DownloadCloud, ShieldCheck } from 'lucide-react';
+import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2, Bell, X, DownloadCloud, ShieldCheck, HelpCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
@@ -25,11 +25,13 @@ const App: React.FC = () => {
   useEffect(() => {
     // Détection PWA
     window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('Installation PWA possible détectée');
       e.preventDefault();
       setDeferredPrompt(e);
     });
 
     window.addEventListener('appinstalled', () => {
+      console.log('Application installée');
       setDeferredPrompt(null);
       setIsPWA(true);
     });
@@ -40,7 +42,10 @@ const App: React.FC = () => {
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      alert("Sur iPhone/Safari : Appuyez sur le bouton 'Partager' (carré avec flèche) puis sur 'Sur l'écran d'accueil'.");
+      return;
+    }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -105,8 +110,6 @@ const App: React.FC = () => {
     let color = practitioner?.themeColor || '#14b8a6';
     const isDark = practitioner?.isDarkMode;
     
-    if (color === '#f59e0b' || color === 'orange') color = '#f59e0b';
-
     const lighten = (hex: string, percent: number) => {
       const num = parseInt(hex.replace("#",""), 16),
       amt = Math.round(2.55 * percent),
@@ -116,12 +119,8 @@ const App: React.FC = () => {
       return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
     };
 
-    const isGrayish = color === '#64748b' || color === '#475569';
-    const textColor = (isDark && isGrayish) ? lighten(color, 60) : color;
-
     return {
       '--primary': color,
-      '--primary-text': textColor,
       '--primary-soft': `${color}15`,
       '--primary-border': `${color}30`,
     } as React.CSSProperties;
@@ -134,14 +133,14 @@ const App: React.FC = () => {
   };
 
   const handleExportData = async () => {
-    if (!confirm("Exporter toutes vos données ? Le fichier contiendra les dossiers patients, les séances et les photos.")) return;
+    if (!confirm("Exporter toutes vos données ?")) return;
     setIsProcessing(true);
     try {
       const patients = await db.patients.toArray();
       const sessions = await db.sessions.toArray();
       const profiles = await db.profile.toArray();
       const mediaMeta = await db.media_metadata.toArray();
-      const dataToExport = { app: "OstéoSuivi", version: "3.5", exportDate: new Date().toISOString(), practitioner: profiles, patients, sessions, mediaMeta };
+      const dataToExport = { app: "OstéoSuivi", version: "3.6", exportDate: new Date().toISOString(), practitioner: profiles, patients, sessions, mediaMeta };
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -162,7 +161,7 @@ const App: React.FC = () => {
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!confirm("ATTENTION : L'importation va supprimer TOUTES les données actuelles de l'application (Patients, Séances, Photos) pour les remplacer par celles du fichier. Continuer ?")) {
+    if (!confirm("L'importation va écraser TOUTES vos données. Continuer ?")) {
       e.target.value = '';
       return;
     }
@@ -171,21 +170,17 @@ const App: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        if (data.app !== "OstéoSuivi") throw new Error("Le fichier n'est pas une sauvegarde valide d'OstéoSuivi.");
+        if (data.app !== "OstéoSuivi") throw new Error("Format invalide.");
         
         await (db as any).transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
-          await db.patients.clear(); 
-          await db.sessions.clear(); 
-          await db.profile.clear(); 
-          await db.media_metadata.clear();
+          await db.patients.clear(); await db.sessions.clear(); await db.profile.clear(); await db.media_metadata.clear();
           if (data.patients) await db.patients.bulkAdd(data.patients);
           if (data.sessions) await db.sessions.bulkAdd(data.sessions);
           if (data.practitioner) await db.profile.bulkPut(data.practitioner);
           if (data.mediaMeta) await db.media_metadata.bulkAdd(data.mediaMeta);
         });
-        alert("Import réussi. L'application va redémarrer.");
         window.location.reload();
-      } catch (err) { alert("Erreur import: " + (err as Error).message); } finally { setIsProcessing(false); }
+      } catch (err) { alert("Erreur import."); } finally { setIsProcessing(false); }
     };
     reader.readAsText(file);
   };
@@ -204,72 +199,48 @@ const App: React.FC = () => {
     <div style={themeStyles} className="mx-auto min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
       <style>{`
         .bg-primary { background-color: var(--primary); }
-        .text-primary { color: var(--primary-text); }
         .border-primary { border-color: var(--primary); }
         .bg-primary-soft { background-color: var(--primary-soft); }
+        .text-primary { color: var(--primary); }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-        .dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
       `}</style>
 
       {isProcessing && (
-        <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center" aria-busy="true">
+        <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
           <Loader2 className="animate-spin text-primary" size={32} />
-        </div>
-      )}
-
-      {/* Notification de sauvegarde discrète */}
-      {showNotification && isBackupDue && (
-        <div className="fixed bottom-24 right-6 left-6 sm:left-auto sm:w-80 z-50 animate-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 flex items-start gap-3">
-            <div className="p-2 bg-primary-soft rounded-lg text-primary">
-              <Bell size={18} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider mb-1">Rappel de sauvegarde</h4>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">Pensez à exporter vos données. Dernière sauvegarde : {practitioner?.lastExportDate ? new Date(practitioner.lastExportDate).toLocaleDateString() : 'jamais'}.</p>
-              <div className="flex gap-2 mt-3">
-                <button onClick={handleExportData} className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline">Exporter maintenant</button>
-                <button onClick={() => setShowNotification(false)} className="text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600">Plus tard</button>
-              </div>
-            </div>
-            <button onClick={() => setShowNotification(false)} className="text-slate-300 hover:text-slate-500" aria-label="Fermer la notification">
-              <X size={14} />
-            </button>
-          </div>
         </div>
       )}
 
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           {currentView !== 'DASHBOARD' && (
-            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500" aria-label="Retour au tableau de bord">
+            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
               <ChevronLeft size={20} />
             </button>
           )}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')} role="button" aria-label="Logo OstéoSuivi">
-            <div className="w-9 h-9 bg-primary rounded-lg overflow-hidden flex items-center justify-center text-white">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
+            <div className="w-9 h-9 bg-primary rounded-xl overflow-hidden flex items-center justify-center text-white shadow-sm">
               {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={24} />}
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
-              <div className="flex items-center gap-2 mt-1">
-                {!isPWA && deferredPrompt ? (
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                {(!isPWA) ? (
                   <button 
                     onClick={handleInstallClick}
-                    className="flex items-center gap-1 text-[9px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full hover:bg-primary/20 transition-colors uppercase tracking-wider"
+                    className="flex items-center gap-1 text-[9px] font-bold text-white bg-primary px-2 py-0.5 rounded-lg hover:brightness-110 transition-all uppercase tracking-wider shadow-sm"
                   >
-                    <DownloadCloud size={10} /> Installer l'App
+                    <DownloadCloud size={10} /> Installer
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tight flex items-center gap-1">
-                      <ShieldCheck size={10} className="text-emerald-500" /> Données sécurisées
-                    </span>
-                    <div className="flex items-center gap-1 text-[9px] font-semibold text-primary/80">
-                      <HardDrive size={10} /> {usagePercent}%
-                    </div>
+                  <div className="flex items-center gap-1 text-[9px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">
+                    <ShieldCheck size={10} /> Sécurisé
                   </div>
                 )}
+                <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase">
+                  <HardDrive size={10} /> {usagePercent}%
+                </div>
               </div>
             </div>
           </div>
@@ -277,17 +248,17 @@ const App: React.FC = () => {
         <div className="flex items-center gap-1">
           {currentView === 'DASHBOARD' && (
             <>
-              <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} aria-hidden="true" />
-              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde" aria-label="Importer une sauvegarde">
+              <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
+              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer">
                 <Download size={18} />
               </button>
               <div className="relative">
-                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter une sauvegarde" aria-label="Exporter une sauvegarde">
+                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter">
                   <Upload size={18} />
                 </button>
                 {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900" />}
               </div>
-              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres" aria-label="Accéder aux paramètres">
+              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres">
                 <Settings size={18} />
               </button>
             </>
@@ -324,7 +295,7 @@ const App: React.FC = () => {
       </main>
 
       {currentView === 'DASHBOARD' && (
-        <button onClick={() => navigateTo('ADD_PATIENT')} className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all sm:hidden" aria-label="Ajouter un nouveau patient">
+        <button onClick={() => navigateTo('ADD_PATIENT')} className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all sm:hidden">
           <Plus size={24} />
         </button>
       )}
