@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../db';
 import { Patient, Gender, Laterality } from '../types';
-import { Camera, Upload, X, Save, Loader2, User, Activity, HeartPulse, UserPlus, Phone, Mail, Briefcase, Users, Stethoscope, ClipboardList, Eye, Headphones, History } from 'lucide-react';
+import { Camera, Upload, X, Save, Loader2, User, Activity, HeartPulse, UserPlus, Phone, Mail, Briefcase, Users, Stethoscope, ClipboardList, Eye, Headphones, History, FileText, Scissors, Bone, Ear } from 'lucide-react';
 import { processAndStoreImage, getImageUrl, revokeUrl } from '../services/imageService';
 
 interface PatientFormProps {
@@ -11,7 +11,7 @@ interface PatientFormProps {
   onSuccess: () => void;
 }
 
-// Helpers déplacés hors du composant pour éviter la perte de focus (bug "un seul caractère")
+// Helpers déplacés hors du composant pour éviter la perte de focus
 const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
   <div className="flex items-center gap-2 mb-6 mt-10 first:mt-0 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 dark:border-slate-800 pb-2">
     <Icon size={14} className="text-primary" /> {title}
@@ -49,8 +49,8 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
   const [formData, setFormData] = useState<Partial<Patient>>({
     firstName: '', lastName: '', birthDate: '', gender: 'M', phone: '', email: '', address: '',
     familyStatus: 'Célibataire', hasChildren: '', profession: '', physicalActivity: '', isSmoker: false,
-    contraception: '', currentTreatment: '', laterality: 'D', gpName: '', gpCity: '',
-    antSurgical: '', antTraumaRhuma: '', antOphtalmo: '', antORL: '', antDigestive: '', medicalHistory: ''
+    contraception: '', currentTreatment: '', laterality: 'D', gpName: 'Dr ', gpCity: '',
+    antSurgical: '', antTraumaRhuma: '', antOphtalmo: '', antORL: '', antDigestive: '', antNotes: '', medicalHistory: ''
   });
   
   const [photoId, setPhotoId] = useState<number | null>(null);
@@ -217,12 +217,15 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
 
         <SectionHeader icon={History} title="Antécédents" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <TextAreaField label="Chirurgicaux" value={formData.antSurgical} onChange={(v:string) => setFormData({...formData, antSurgical: v})} />
-          <TextAreaField label="Traumato & Rhumato" value={formData.antTraumaRhuma} onChange={(v:string) => setFormData({...formData, antTraumaRhuma: v})} />
-          <TextAreaField label="Ophtalmo" value={formData.antOphtalmo} onChange={(v:string) => setFormData({...formData, antOphtalmo: v})} />
-          <TextAreaField label="ORL" value={formData.antORL} onChange={(v:string) => setFormData({...formData, antORL: v})} />
-          <TextAreaField label="Digestifs" value={formData.antDigestive} onChange={(v:string) => setFormData({...formData, antDigestive: v})} />
-          <TextAreaField label="Autres notes" value={formData.medicalHistory} onChange={(v:string) => setFormData({...formData, medicalHistory: v})} />
+          <TextAreaField label="Chirurgicaux" icon={Scissors} value={formData.antSurgical} onChange={(v:string) => setFormData({...formData, antSurgical: v})} />
+          <TextAreaField label="Traumato & Rhumato" icon={Bone} value={formData.antTraumaRhuma} onChange={(v:string) => setFormData({...formData, antTraumaRhuma: v})} />
+          <TextAreaField label="Ophtalmo" icon={Eye} value={formData.antOphtalmo} onChange={(v:string) => setFormData({...formData, antOphtalmo: v})} />
+          <TextAreaField label="ORL" icon={Ear} value={formData.antORL} onChange={(v:string) => setFormData({...formData, antORL: v})} />
+          <TextAreaField label="Digestifs" icon={Activity} value={formData.antDigestive} onChange={(v:string) => setFormData({...formData, antDigestive: v})} />
+          <TextAreaField label="Notes liées à l'antécédent" icon={FileText} value={formData.antNotes} onChange={(v:string) => setFormData({...formData, antNotes: v})} />
+          <div className="sm:col-span-2">
+            <TextAreaField label="Autres notes médicales" value={formData.medicalHistory} onChange={(v:string) => setFormData({...formData, medicalHistory: v})} />
+          </div>
         </div>
 
         <div className="flex gap-4 pt-10 sticky bottom-0 bg-white dark:bg-slate-900 py-4 border-t border-slate-100 dark:border-slate-800">

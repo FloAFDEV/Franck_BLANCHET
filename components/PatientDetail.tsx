@@ -23,8 +23,8 @@ const getAge = (birthDate: string) => {
 };
 
 const SectionHeader = ({ icon: Icon, title }: any) => (
-  <div className="flex items-center gap-2 mb-6 text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em] px-1 border-b border-slate-100 dark:border-slate-800 pb-3">
-    <Icon size={16} className="text-primary/80" /> {title}
+  <div className="flex items-center gap-2 mb-6 text-[10px] font-medium text-slate-400 uppercase tracking-[0.25em] px-1 border-b border-slate-100 dark:border-slate-800 pb-3">
+    <Icon size={16} className="text-primary/70" /> {title}
   </div>
 );
 
@@ -33,7 +33,7 @@ const InfoTag = ({ label, value, icon: Icon, href }: any) => {
     <div className={`flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all ${href ? 'hover:border-primary group cursor-pointer' : ''}`}>
       {Icon && <Icon size={16} className={`shrink-0 ${href ? 'text-slate-400 group-hover:text-primary' : 'text-slate-400'}`} />}
       <div className="min-w-0 flex-1">
-        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{label}</p>
+        <p className="text-[9px] font-medium text-slate-400 uppercase tracking-tighter mb-0.5">{label}</p>
         <p className={`text-xs font-semibold truncate ${href ? 'text-slate-700 dark:text-slate-200 group-hover:text-primary' : 'text-slate-700 dark:text-slate-200'}`}>
           {value || '—'}
         </p>
@@ -53,9 +53,9 @@ const MedicalCard = ({ title, content, icon: Icon }: any) => (
   <div className="bg-white dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-3 shadow-sm hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
     <div className="flex items-center gap-2">
       <Icon size={14} className="text-primary/60" />
-      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</h4>
+      <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{title}</h4>
     </div>
-    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{content || "Aucun antécédent renseigné"}</p>
+    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic font-medium">{content || "Aucun antécédent renseigné"}</p>
   </div>
 );
 
@@ -67,7 +67,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
   
-  // Nouveaux états pour le filtrage
   const [sessionSearch, setSessionSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<'ALL' | 'MONTH' | 'YEAR'>('ALL');
 
@@ -83,14 +82,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
 
   useEffect(() => { fetchData(); return () => { if (photoUrl) revokeUrl(photoUrl); }; }, [fetchData]);
 
-  // Filtrage des séances
   const filteredSessions = useMemo(() => {
     return sessions.filter(s => {
       const matchesSearch = s.hdlm.toLowerCase().includes(sessionSearch.toLowerCase()) || 
                            s.treatment.toLowerCase().includes(sessionSearch.toLowerCase());
       
       if (!matchesSearch) return false;
-
       if (dateFilter === 'ALL') return true;
       const sessionDate = new Date(s.date);
       const now = new Date();
@@ -148,7 +145,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     : 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
   return (
-    <div className="space-y-12 pb-24 animate-in fade-in duration-300">
+    <div className="space-y-12 pb-24 animate-in fade-in duration-500">
+      {/* IDENTIFICATION DE SECTION */}
+      <div className="px-2">
+        <p className="text-[10px] font-light text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] mb-2">Fiche Patient</p>
+      </div>
+
       <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col lg:flex-row gap-10 items-center lg:items-start">
         <div className={`w-44 h-44 sm:w-52 sm:h-52 rounded-[2.5rem] border-[5px] ${genderBorder} bg-slate-50 dark:bg-slate-800 overflow-hidden shrink-0 shadow-inner flex items-center justify-center text-slate-100`}>
           {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <User size={56} />}
@@ -157,34 +159,34 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         <div className="flex-1 w-full text-center lg:text-left">
           <div className="flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6 mb-8">
             <div className="space-y-2">
-              <h2 className="text-4xl font-black text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tight">
-                {patient.lastName} <span className="font-light text-slate-500 lowercase">{patient.firstName}</span>
+              <h2 className="text-4xl font-bold text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tight">
+                {patient.lastName} <span className="font-light text-slate-400 lowercase">{patient.firstName}</span>
               </h2>
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-3">
-                <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${patient.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'}`}>
+                <span className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold uppercase tracking-widest ${patient.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'}`}>
                   {patient.gender === 'M' ? 'HOMME' : 'FEMME'} • {getAge(patient.birthDate)} ANS
                 </span>
-                <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <Calendar size={14} /> {new Date(patient.birthDate).toLocaleDateString()}
                 </span>
               </div>
               
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 mt-8 p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100/50 dark:border-slate-800/50">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Dernière Séance</span>
-                  <span className="text-sm font-black text-primary">
+                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest leading-none">Dernière Séance</span>
+                  <span className="text-sm font-bold text-primary">
                     {stats.lastSessionDate ? new Date(stats.lastSessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Première visite'}
                   </span>
                 </div>
                 <div className="w-px h-10 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Total</span>
-                  <span className="text-sm font-black text-slate-700 dark:text-slate-300">{stats.total} séance{stats.total > 1 ? 's' : ''}</span>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest leading-none">Total</span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{stats.total} séance{stats.total > 1 ? 's' : ''}</span>
                 </div>
                 <div className="w-px h-10 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Année {new Date().getFullYear()}</span>
-                  <span className="text-sm font-black text-slate-700 dark:text-slate-300">{stats.thisYear} séance{stats.thisYear > 1 ? 's' : ''}</span>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest leading-none">Année {new Date().getFullYear()}</span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{stats.thisYear} séance{stats.thisYear > 1 ? 's' : ''}</span>
                 </div>
               </div>
             </div>
@@ -203,6 +205,20 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             <InfoTag label="Famille" value={`${patient.familyStatus}${patient.hasChildren ? ` (${patient.hasChildren})` : ''}`} icon={Users} />
             <InfoTag label="Latéralité" value={patient.laterality === 'G' ? 'Gaucher' : 'Droitier'} icon={Activity} />
           </div>
+
+          {/* SECTION MEDECIN REFERENT */}
+          <div className="mt-6 p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
+              <Stethoscope size={20} />
+            </div>
+            <div className="flex-1 text-center sm:text-left min-w-0">
+              <p className="text-[10px] font-light text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-0.5">Médecin Référent</p>
+              <div className="flex flex-col sm:flex-row sm:items-baseline gap-2">
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{patient.gpName || "Non renseigné"}</span>
+                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">{patient.gpCity && `à ${patient.gpCity}`}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -211,18 +227,18 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           <SectionHeader icon={Info} title="Suivi & Habitudes de vie" />
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] shadow-sm flex flex-col justify-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Activité Sportive</p>
-              <p className="text-sm text-slate-700 dark:text-slate-200 font-semibold">{patient.physicalActivity || "Aucune activité déclarée"}</p>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-2 px-1">Activité Sportive</p>
+              <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{patient.physicalActivity || "Aucune activité déclarée"}</p>
             </div>
             <div className="p-6 bg-primary-soft border border-primary-border rounded-[2rem] shadow-sm flex flex-col justify-center">
-              <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest px-1">
-                <Stethoscope size={16} /> Médecin Traitant
+              <div className="flex items-center gap-2 mb-2 text-[10px] font-semibold text-primary uppercase tracking-widest px-1">
+                <Activity size={16} /> Mode de vie
               </div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{patient.gpName || "Non renseigné"}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-1">{patient.gpCity}</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{patient.isSmoker ? "Fumeur" : "Non fumeur"}</p>
+              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter mt-1">{patient.physicalActivity}</p>
             </div>
             <div className="p-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-[2rem] shadow-sm flex flex-col justify-center">
-              <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest px-1">
+              <div className="flex items-center gap-2 mb-2 text-[10px] font-semibold text-amber-600 uppercase tracking-widest px-1">
                 <HeartPulse size={16} /> Traitement actuel
               </div>
               <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic font-medium">{patient.currentTreatment || "Pas de traitement en cours"}</p>
@@ -247,12 +263,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         <div className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
             <SectionHeader icon={BookOpen} title="Historique des consultations (HDLM)" />
-            <button onClick={() => { setEditingSession(null); setIsAddingSession(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:brightness-105 active:scale-95 transition-all">
+            <button onClick={() => { setEditingSession(null); setIsAddingSession(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-widest shadow-xl hover:brightness-105 active:scale-95 transition-all">
               <Plus size={18} /> Nouvelle Séance
             </button>
           </div>
 
-          {/* BARRE DE FILTRAGE DES SÉANCES */}
           <div className="bg-slate-50 dark:bg-slate-800/40 p-4 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -297,8 +312,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                   <div className="flex items-center gap-6">
                     <div className={`p-3.5 rounded-2xl transition-colors ${open ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-primary'}`}><Calendar size={22} /></div>
                     <div className="flex flex-col">
-                      <span className="text-base font-black text-slate-900 dark:text-slate-100">{new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[200px] sm:max-w-md">{s.hdlm}</span>
+                      <span className="text-base font-bold text-slate-900 dark:text-slate-100">{new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-tighter truncate max-w-[200px] sm:max-w-md">{s.hdlm}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -310,19 +325,19 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                 {open && (
                   <div className="px-8 pb-10 pt-6 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-50 dark:border-slate-800 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={14} className="text-primary/50" /> Motif / HDLM</label>
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={14} className="text-primary/50" /> Motif / HDLM</label>
                       <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.hdlm || "—"}</div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-primary/50" /> Tests Cliniques</label>
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-primary/50" /> Tests Cliniques</label>
                       <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.tests || "—"}</div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><HeartPulse size={14} className="text-primary/50" /> Traitement</label>
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><HeartPulse size={14} className="text-primary/50" /> Traitement</label>
                       <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.treatment || "—"}</div>
                     </div>
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><ClipboardList size={14} className="text-primary/50" /> Conseils</label>
+                      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><ClipboardList size={14} className="text-primary/50" /> Conseils</label>
                       <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.advice || "—"}</div>
                     </div>
                   </div>
@@ -332,7 +347,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           }) : (
             <div className="py-16 flex flex-col items-center text-slate-400 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem]">
               <History size={32} className="opacity-10 mb-4" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em]">
                 {sessionSearch || dateFilter !== 'ALL' ? 'Aucun résultat pour ces filtres' : 'Aucune séance enregistrée'}
               </p>
             </div>

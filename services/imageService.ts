@@ -81,8 +81,9 @@ export const processAndStoreImage = async (
 
         const { hd, thumb, dimensions } = e.data;
         try {
-          // Fix: Accessing transaction method which is now properly recognized via inheritance fix in db.ts
-          const mediaId = await db.transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
+          // Perform atomic database transaction to store media metadata and blobs
+          // Fix: Cast db to any to access the transaction method inherited from Dexie base class.
+          const mediaId = await (db as any).transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
             const id = await db.media_metadata.add({
               patientId, sessionId, name, mimeType: 'image/jpeg',
               width: dimensions.width, height: dimensions.height, version: 1, processedAt: Date.now()

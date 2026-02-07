@@ -137,8 +137,7 @@ const App: React.FC = () => {
         const data = JSON.parse(event.target?.result as string);
         if (data.app !== "OstéoSuivi") throw new Error("Le fichier n'est pas une sauvegarde valide d'OstéoSuivi.");
         
-        // Fix: Use transaction which is correctly available on the db instance after inheritance fix in db.ts
-        await db.transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
+        await (db as any).transaction('rw', [db.patients, db.sessions, db.profile, db.media_metadata], async () => {
           await db.patients.clear(); 
           await db.sessions.clear(); 
           await db.profile.clear(); 
@@ -208,18 +207,16 @@ const App: React.FC = () => {
           {currentView === 'DASHBOARD' && (
             <>
               <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
-              {/* Icône Import : Download (Flèche Bas) */}
               <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde">
                 <Download size={18} />
               </button>
               <div className="relative">
-                {/* Icône Export : Upload (Flèche Haut) */}
                 <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter une sauvegarde">
                   <Upload size={18} />
                 </button>
-                {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />}
+                {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900" />}
               </div>
-              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary" title="Profil & Réglages">
+              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres">
                 <Settings size={18} />
               </button>
             </>
@@ -227,18 +224,32 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 p-4 sm:p-6 max-w-5xl mx-auto w-full">
-        {currentView === 'DASHBOARD' && (
-          <Dashboard 
-            onSelectPatient={(id) => id === -1 ? navigateTo('ADD_PATIENT') : navigateTo('PATIENT_DETAIL', id)} 
-            isBackupDue={isBackupDue} 
-            onExportRequest={handleExportData} 
-          />
-        )}
-        {currentView === 'ADD_PATIENT' && <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => navigateTo('DASHBOARD')} />}
-        {currentView === 'EDIT_PATIENT' && selectedPatientId && <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} />}
-        {currentView === 'PATIENT_DETAIL' && selectedPatientId && <PatientDetail patientId={selectedPatientId} onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} onDelete={() => navigateTo('DASHBOARD')} />}
-        {currentView === 'PRACTITIONER_PROFILE' && <PractitionerProfile onSuccess={() => { refreshPractitioner(); navigateTo('DASHBOARD'); }} onCancel={() => navigateTo('DASHBOARD')} />}
+      <main className="flex-1 overflow-y-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {currentView === 'DASHBOARD' && (
+            <Dashboard 
+              onSelectPatient={(id) => id === -1 ? navigateTo('ADD_PATIENT') : navigateTo('PATIENT_DETAIL', id)} 
+              isBackupDue={isBackupDue}
+              onExportRequest={handleExportData}
+            />
+          )}
+          {currentView === 'ADD_PATIENT' && (
+            <PatientForm onCancel={() => navigateTo('DASHBOARD')} onSuccess={() => navigateTo('DASHBOARD')} />
+          )}
+          {currentView === 'EDIT_PATIENT' && selectedPatientId && (
+            <PatientForm patientId={selectedPatientId} onCancel={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} onSuccess={() => navigateTo('PATIENT_DETAIL', selectedPatientId)} />
+          )}
+          {currentView === 'PATIENT_DETAIL' && selectedPatientId && (
+            <PatientDetail 
+              patientId={selectedPatientId} 
+              onEdit={() => navigateTo('EDIT_PATIENT', selectedPatientId)} 
+              onDelete={() => navigateTo('DASHBOARD')} 
+            />
+          )}
+          {currentView === 'PRACTITIONER_PROFILE' && (
+            <PractitionerProfile onSuccess={() => { refreshPractitioner(); navigateTo('DASHBOARD'); }} onCancel={() => navigateTo('DASHBOARD')} />
+          )}
+        </div>
       </main>
 
       {currentView === 'DASHBOARD' && (

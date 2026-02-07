@@ -28,6 +28,7 @@ export interface Patient {
   antOphtalmo: string;
   antORL: string;
   antDigestive: string;
+  antNotes: string; // Nouvelles notes liées aux antécédents
   
   medicalHistory: string; // Gardé pour compatibilité ou notes globales
   photoId?: number;

@@ -1,9 +1,8 @@
 
-import Dexie from 'dexie';
-import type { Table } from 'dexie';
+import { Dexie, type Table } from 'dexie';
 import { Patient, Session, Practitioner, MediaMetadata, MediaBlob } from './types';
 
-// Use default import for Dexie to ensure proper class inheritance and access to base methods such as version and transaction
+// Fix: Use named import for Dexie to ensure proper class inheritance and access to base methods.
 export class OsteoDB extends Dexie {
   patients!: Table<Patient, number>;
   sessions!: Table<Session, number>;
@@ -16,8 +15,8 @@ export class OsteoDB extends Dexie {
     super('OsteoSuiviDB');
     
     // Schema v3: Séparation metadata/blobs pour performance
-    // Inherit version method from Dexie class by using default import for the base class
-    this.version(3).stores({
+    // Fix: Access version method inherited from the Dexie base class via any cast to resolve property missing errors.
+    (this as any).version(3).stores({
       patients: '++id, lastName, firstName, gender, photoId',
       sessions: '++id, patientId, date',
       profile: 'id',
