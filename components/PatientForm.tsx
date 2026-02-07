@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../db';
 import { Patient, Gender, Laterality } from '../types';
-import { Camera, Upload, X, Save, Loader2, User, Activity, HeartPulse, UserPlus, Phone, Mail, Briefcase, Users, Stethoscope, ClipboardList, Eye, Headphones, History, FileText, Scissors, Bone, Ear, Pill, StickyNote } from 'lucide-react';
+import { Camera, Upload, X, Save, Loader2, User, Activity, HeartPulse, UserPlus, Phone, Mail, Briefcase, Users, Stethoscope, ClipboardList, Eye, History, Scissors, Bone, Ear, Pill, StickyNote } from 'lucide-react';
 import { processAndStoreImage, getImageUrl, revokeUrl } from '../services/imageService';
 
 interface PatientFormProps {
@@ -47,7 +47,8 @@ const TextAreaField = ({ label, value, onChange, icon: Icon, iconColor = "text-p
 const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSuccess }) => {
   const [formData, setFormData] = useState<Partial<Patient>>({
     firstName: '', lastName: '', birthDate: '', gender: 'M', phone: '', email: '', address: '',
-    familyStatus: 'Célibataire', hasChildren: '', profession: '', physicalActivity: '', isSmoker: false,
+    familyStatus: 'Célibataire', hasChildren: '', profession: '', physicalActivity: '', 
+    isSmoker: false, isFormerSmoker: false, smokerSince: '',
     contraception: '', currentTreatment: '', laterality: 'D', gpName: 'Dr. ', gpCity: '',
     antSurgical: '', antTraumaRhuma: '', antOphtalmo: '', antORL: '', antDigestive: '', antNotes: '', medicalHistory: ''
   });
@@ -101,6 +102,11 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
     }
   };
 
+  const capitalizeFirst = (str: string) => {
+    if (!str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.lastName || !formData.firstName || !formData.birthDate) {
@@ -148,7 +154,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
 
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InputField label="Nom" value={formData.lastName} onChange={(v:string) => setFormData({...formData, lastName: v.toUpperCase()})} />
-            <InputField label="Prénom" value={formData.firstName} onChange={(v:string) => setFormData({...formData, firstName: v})} />
+            <InputField label="Prénom" value={formData.firstName} onChange={(v:string) => setFormData({...formData, firstName: capitalizeFirst(v)})} />
             <InputField label="Date de Naissance" type="date" value={formData.birthDate} onChange={(v:string) => setFormData({...formData, birthDate: v})} />
             <div className="space-y-1">
               <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Genre</label>
@@ -194,9 +200,37 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-3 pt-6 px-2">
-            <input type="checkbox" id="smoker" className="w-4 h-4 accent-primary" checked={formData.isSmoker} onChange={e => setFormData({...formData, isSmoker: e.target.checked})} />
-            <label htmlFor="smoker" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide cursor-pointer">Fumeur</label>
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Tabac</label>
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl mb-2">
+              <button 
+                type="button" 
+                onClick={() => setFormData({...formData, isSmoker: false, isFormerSmoker: false})} 
+                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${!formData.isSmoker && !formData.isFormerSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                NON
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setFormData({...formData, isSmoker: true, isFormerSmoker: false})} 
+                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.isSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                OUI
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setFormData({...formData, isSmoker: false, isFormerSmoker: true})} 
+                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.isFormerSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                ANCIEN
+              </button>
+            </div>
+            {(formData.isSmoker || formData.isFormerSmoker) && (
+              <input 
+                type="text" 
+                placeholder="Depuis quand / Combien de temps ?" 
+                className="w-full p-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none focus:border-primary"
+                value={formData.smokerSince || ''}
+                onChange={e => setFormData({...formData, smokerSince: e.target.value})}
+              />
+            )}
           </div>
         </div>
 

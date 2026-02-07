@@ -16,6 +16,8 @@ export interface Patient {
   profession: string;
   physicalActivity: string;
   isSmoker: boolean;
+  isFormerSmoker?: boolean; // Nouveau: Ancien fumeur
+  smokerSince?: string; // Nouveau: Depuis quand / Durée
   contraception?: string; // Pour les femmes
   currentTreatment: string;
   laterality: Laterality;

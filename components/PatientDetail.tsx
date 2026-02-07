@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones, Info, Filter, X, Scissors, Bone, Ear, Pill, StickyNote } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Info, X, Scissors, Bone, Ear, Pill, StickyNote } from 'lucide-react';
 import SessionForm from './SessionForm';
 import { getImageUrl, revokeUrl } from '../services/imageService';
 
@@ -22,6 +22,11 @@ const getAge = (birthDate: string) => {
   return age;
 };
 
+const capitalize = (str: string) => {
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
+
 const SectionHeader = ({ icon: Icon, title }: any) => (
   <div className="flex items-center gap-2 mb-6 text-[10px] font-medium text-slate-400 uppercase tracking-[0.25em] px-1 border-b border-slate-100 dark:border-slate-800 pb-3">
     <Icon size={16} className="text-primary/70" /> {title}
@@ -29,16 +34,17 @@ const SectionHeader = ({ icon: Icon, title }: any) => (
 );
 
 const InfoTag = ({ label, value, icon: Icon, href }: any) => {
+  const displayValue = value && value !== "undefined" ? value : "-";
   const Content = (
-    <div className={`flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all ${href ? 'hover:border-primary group cursor-pointer' : ''}`}>
-      {Icon && <Icon size={16} className={`shrink-0 ${href ? 'text-slate-400 group-hover:text-primary' : 'text-slate-400'}`} />}
+    <div className={`flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all ${href && value ? 'hover:border-primary group cursor-pointer' : ''}`}>
+      {Icon && <Icon size={16} className={`shrink-0 ${href && value ? 'text-slate-400 group-hover:text-primary' : 'text-slate-400'}`} />}
       <div className="min-w-0 flex-1">
         <p className="text-[9px] font-medium text-slate-400 uppercase tracking-tighter mb-0.5">{label}</p>
-        <p className={`text-xs font-semibold truncate ${href ? 'text-slate-700 dark:text-slate-200 group-hover:text-primary' : 'text-slate-700 dark:text-slate-200'}`}>
-          {value || '—'}
+        <p className={`text-xs font-semibold truncate ${href && value ? 'text-slate-700 dark:text-slate-200 group-hover:text-primary' : 'text-slate-700 dark:text-slate-200'}`}>
+          {displayValue}
         </p>
       </div>
-      {href && <ExternalLink size={10} className="text-slate-300 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all" />}
+      {href && value && <ExternalLink size={10} className="text-slate-300 group-hover:text-primary opacity-0 group-hover:opacity-100 transition-all" />}
     </div>
   );
 
@@ -55,7 +61,7 @@ const MedicalCard = ({ title, content, icon: Icon, iconColor = "text-primary/60"
       <Icon size={14} className={iconColor} />
       <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{title}</h4>
     </div>
-    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic font-medium">{content || "Aucun antécédent renseigné"}</p>
+    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic font-medium">{content || "-"}</p>
   </div>
 );
 
@@ -147,17 +153,28 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     ? 'border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.3)]' 
     : 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
-  // Formatage du nom du médecin
   const formattedGpName = useMemo(() => {
-    if (!patient.gpName) return "Non renseigné";
+    if (!patient.gpName || patient.gpName === "Dr. ") return "-";
     const name = patient.gpName.trim();
     if (name.toLowerCase().startsWith("dr")) return name;
     return `Dr. ${name}`;
   }, [patient.gpName]);
 
+  const smokerLabel = useMemo(() => {
+    if (patient.isSmoker) return `Fumeur${patient.smokerSince ? ` (${patient.smokerSince})` : ''}`;
+    if (patient.isFormerSmoker) return `Ancien fumeur${patient.smokerSince ? ` (${patient.smokerSince})` : ''}`;
+    return "Non fumeur";
+  }, [patient.isSmoker, patient.isFormerSmoker, patient.smokerSince]);
+
+  const familyLabel = useMemo(() => {
+    if (!patient.familyStatus) return "-";
+    const status = patient.familyStatus;
+    const children = patient.hasChildren && patient.hasChildren !== "Non" ? ` (${patient.hasChildren})` : '';
+    return `${status}${children}`;
+  }, [patient.familyStatus, patient.hasChildren]);
+
   return (
     <div className="space-y-12 pb-24 animate-in fade-in duration-500">
-      {/* IDENTIFICATION DE SECTION */}
       <div className="px-2">
         <p className="text-[10px] font-extralight text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] mb-2">Fiche Patient</p>
       </div>
@@ -171,7 +188,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           <div className="flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6 mb-8">
             <div className="space-y-2">
               <h2 className="text-4xl font-bold text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tight">
-                {patient.lastName} <span className="font-light text-slate-400 lowercase">{patient.firstName}</span>
+                {patient.lastName} <span className="font-light text-slate-400 lowercase">{capitalize(patient.firstName)}</span>
               </h2>
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-3">
                 <span className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold uppercase tracking-widest ${patient.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'}`}>
@@ -213,11 +230,10 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             <InfoTag label="Email" value={patient.email} icon={Mail} href={patient.email ? `mailto:${patient.email}` : undefined} />
             <InfoTag label="Localité" value={patient.address} icon={MapPin} href={patient.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(patient.address)}` : undefined} />
             <InfoTag label="Profession" value={patient.profession} icon={Briefcase} />
-            <InfoTag label="Famille" value={`${patient.familyStatus}${patient.hasChildren ? ` (${patient.hasChildren})` : ''}`} icon={Users} />
+            <InfoTag label="Famille" value={familyLabel} icon={Users} />
             <InfoTag label="Latéralité" value={patient.laterality === 'G' ? 'Gaucher' : 'Droitier'} icon={Activity} />
           </div>
 
-          {/* SECTION MEDECIN RÉFÉRENT */}
           <div className="mt-6 p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-4">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
               <Stethoscope size={20} />
@@ -239,20 +255,20 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] shadow-sm flex flex-col justify-center">
               <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest mb-2 px-1">Activité Sportive</p>
-              <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{patient.physicalActivity || "Aucune activité déclarée"}</p>
+              <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">{patient.physicalActivity || "-"}</p>
             </div>
             <div className="p-6 bg-primary-soft border border-primary-border rounded-[2rem] shadow-sm flex flex-col justify-center">
               <div className="flex items-center gap-2 mb-2 text-[10px] font-semibold text-primary uppercase tracking-widest px-1">
                 <Activity size={16} /> Mode de vie
               </div>
-              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{patient.isSmoker ? "Fumeur" : "Non fumeur"}</p>
-              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter mt-1">{patient.physicalActivity}</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{smokerLabel}</p>
+              <p className="text-[10px] font-medium text-slate-500 uppercase tracking-tighter mt-1">{patient.physicalActivity || "-"}</p>
             </div>
             <div className="p-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-[2rem] shadow-sm flex flex-col justify-center">
               <div className="flex items-center gap-2 mb-2 text-[10px] font-semibold text-amber-600 uppercase tracking-widest px-1">
                 <HeartPulse size={16} /> Traitement actuel
               </div>
-              <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic font-medium">{patient.currentTreatment || "Pas de traitement en cours"}</p>
+              <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic font-medium">{patient.currentTreatment || "-"}</p>
             </div>
           </div>
         </div>
@@ -337,19 +353,19 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
                   <div className="px-8 pb-10 pt-6 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-50 dark:border-slate-800 animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="space-y-3">
                       <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={14} className="text-primary/50" /> Motif / HDLM</label>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.hdlm || "—"}</div>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.hdlm || "-"}</div>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-primary/50" /> Tests Cliniques</label>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.tests || "—"}</div>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.tests || "-"}</div>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><HeartPulse size={14} className="text-primary/50" /> Traitement</label>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.treatment || "—"}</div>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.treatment || "-"}</div>
                     </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2"><ClipboardList size={14} className="text-primary/50" /> Conseils</label>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.advice || "—"}</div>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.advice || "-"}</div>
                     </div>
                   </div>
                 )}
