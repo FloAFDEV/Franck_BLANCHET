@@ -1,8 +1,8 @@
 
-import Dexie, { type Table } from 'dexie';
+import { Dexie, type Table } from 'dexie';
 import { Patient, Session, Practitioner, MediaMetadata, MediaBlob } from './types';
 
-// Use default import for Dexie to ensure correct class inheritance and type resolution for Dexie methods.
+// Fix: Use named import for Dexie to ensure proper class inheritance and access to base methods.
 export class OsteoDB extends Dexie {
   patients!: Table<Patient, number>;
   sessions!: Table<Session, number>;
@@ -14,31 +14,28 @@ export class OsteoDB extends Dexie {
   constructor() {
     super('OsteoSuiviDB');
     
-    // Initialisation de la structure de la base de données via la méthode version() héritée de Dexie.
-    this.version(4).stores({
+    // Schema v3: Séparation metadata/blobs pour performance
+    // Fix: Access version method inherited from the Dexie base class via any cast to resolve property missing errors.
+    (this as any).version(3).stores({
       patients: '++id, lastName, firstName, gender, photoId',
       sessions: '++id, patientId, date',
       profile: 'id',
       media_metadata: '++id, patientId, sessionId, processedAt',
-      media_blobs: 'mediaId',
+      media_blobs: 'mediaId', // Primary key is the ID from metadata
       thumbnails: 'mediaId'
     });
+  }
+
+  async resetDatabase() {
+    await Promise.all([
+      this.patients.clear(),
+      this.sessions.clear(),
+      this.profile.clear(),
+      this.media_metadata.clear(),
+      this.media_blobs.clear(),
+      this.thumbnails.clear()
+    ]);
   }
 }
 
 export const db = new OsteoDB();
-
-/**
- * Demande au navigateur de ne pas supprimer les données automatiquement.
- * Important pour Safari qui peut purger après 7 jours d'inactivité.
- */
-export async function checkAndRequestPersistence() {
-  if (navigator.storage && navigator.storage.persist) {
-    const isPersisted = await navigator.storage.persisted();
-    if (!isPersisted) {
-      return await navigator.storage.persist();
-    }
-    return isPersisted;
-  }
-  return false;
-}

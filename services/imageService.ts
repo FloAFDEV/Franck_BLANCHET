@@ -7,12 +7,14 @@ self.onmessage = async (e) => {
 
   try {
     if (!file) throw new Error("Aucun fichier d'image n'a été fourni.");
+    if (!(file instanceof Blob)) throw new Error("Le format du fichier est invalide (doit être un Blob).");
     
     let bitmap;
     try {
       bitmap = await createImageBitmap(file);
     } catch (err) {
-      throw new Error("Le format de l'image n'est pas supporté ou le fichier est corrompu.");
+      console.error("Worker error decoding bitmap:", err);
+      throw new Error("Impossible de décoder le fichier image. Le fichier est peut-être corrompu ou le format n'est pas supporté par votre navigateur.");
     }
 
     const { width, height } = bitmap;
@@ -28,17 +30,24 @@ self.onmessage = async (e) => {
       }
 
       if (typeof OffscreenCanvas !== 'undefined') {
-        const canvas = new OffscreenCanvas(targetWidth, targetHeight);
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error("Erreur d'initialisation du moteur graphique local.");
-        
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
-        
-        return await canvas.convertToBlob({ type: 'image/jpeg', quality });
+        try {
+          const canvas = new OffscreenCanvas(targetWidth, targetHeight);
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error("Impossible d'obtenir le contexte 2D du canvas de traitement.");
+          
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+          
+          const resultBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+          if (!resultBlob) throw new Error("La conversion du canvas en Blob a échoué.");
+          return resultBlob;
+        } catch (canvasErr) {
+          console.error("Canvas processing error:", canvasErr);
+          throw new Error("Erreur technique lors du redimensionnement de l'image.");
+        }
       } else {
-        throw new Error("Navigateur incompatible : 'OffscreenCanvas' manquant.");
+        throw new Error("Votre navigateur ne supporte pas 'OffscreenCanvas', nécessaire pour le traitement d'image en arrière-plan.");
       }
     };
 
@@ -49,7 +58,10 @@ self.onmessage = async (e) => {
     self.postMessage({ success: true, hd, thumb, dimensions: { width, height } });
 
   } catch (error) {
-    self.postMessage({ success: false, error: error.message });
+    self.postMessage({ 
+      success: false, 
+      error: error.message || "Une erreur inconnue est survenue lors du traitement de l'image." 
+    });
   }
 };
 `;
@@ -72,36 +84,39 @@ export const processAndStoreImage = async (
   name: string = "photo"
 ): Promise<number> => {
   return new Promise((resolve, reject) => {
-    const w = getWorker();
-    const handleMessage = async (e: MessageEvent) => {
-      if (e.data.success === undefined) return;
-      w.removeEventListener('message', handleMessage);
-      
-      if (!e.data.success) { 
-        reject(new Error(e.data.error)); 
-        return; 
-      }
+    try {
+      const w = getWorker();
+      const handleMessage = async (e: MessageEvent) => {
+        if (e.data.success === undefined) return;
+        w.removeEventListener('message', handleMessage);
+        
+        if (!e.data.success) { 
+          reject(new Error(`[Traitement Image] ${e.data.error}`)); 
+          return; 
+        }
 
-      const { hd, thumb, dimensions } = e.data;
-      try {
-        // Use the transaction method inherited from the base Dexie class to ensure atomic persistence of metadata and blobs.
-        // The fixed Dexie import in db.ts ensures db.transaction is correctly typed.
-        const mediaId = await db.transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
-          const id = await db.media_metadata.add({
-            patientId, sessionId, name, mimeType: 'image/jpeg',
-            width: dimensions.width, height: dimensions.height, version: 1, processedAt: Date.now()
+        const { hd, thumb, dimensions } = e.data;
+        try {
+          const mediaId = await (db as any).transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
+            const id = await db.media_metadata.add({
+              patientId, sessionId, name, mimeType: 'image/jpeg',
+              width: dimensions.width, height: dimensions.height, version: 1, processedAt: Date.now()
+            });
+            await db.media_blobs.add({ mediaId: id, data: hd });
+            await db.thumbnails.add({ mediaId: id, data: thumb });
+            return id;
           });
-          await db.media_blobs.add({ mediaId: id, data: hd });
-          await db.thumbnails.add({ mediaId: id, data: thumb });
-          return id;
-        });
-        resolve(mediaId);
-      } catch (err) { 
-        reject(new Error("Erreur de stockage en base de données.")); 
-      }
-    };
-    w.addEventListener('message', handleMessage);
-    w.postMessage({ file, config: { maxHD: 1200, maxThumb: 250 } });
+          resolve(mediaId);
+        } catch (err) { 
+          console.error("DB storage error:", err);
+          reject(new Error("Échec de l'enregistrement de l'image dans la base de données locale.")); 
+        }
+      };
+      w.addEventListener('message', handleMessage);
+      w.postMessage({ file, config: { maxHD: 1200, maxThumb: 250 } });
+    } catch (err) { 
+      reject(new Error("Erreur d'initialisation du service de traitement d'image.")); 
+    }
   });
 };
 

@@ -31,8 +31,9 @@ const InputField = ({ label, value, onChange, type = "text", placeholder = "", r
       value={value || ''} 
       onChange={e => onChange(e.target.value)} 
       aria-required={required}
+      aria-describedby={helperText ? `${id}-helper` : undefined}
     />
-    {helperText && <p className="text-[9px] text-slate-400 px-1 font-medium italic">{helperText}</p>}
+    {helperText && <p id={`${id}-helper`} className="text-[9px] text-slate-400 px-1">{helperText}</p>}
   </div>
 );
 
@@ -109,10 +110,9 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
     }
   };
 
-  const handlePhoneChange = (v: string) => {
-    // On ne garde que les chiffres
-    const numericValue = v.replace(/\D/g, '');
-    setFormData({...formData, phone: numericValue});
+  const capitalizeFirst = (str: string) => {
+    if (!str) return "";
+    return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,28 +130,28 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-w-4xl mx-auto">
+    <div className="bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-w-4xl mx-auto" role="dialog" aria-labelledby="form-title">
       <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center sticky top-0 z-10 backdrop-blur-md">
-        <h2 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2">
+        <h2 id="form-title" className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-widest flex items-center gap-2">
           <UserPlus size={16} className="text-primary" /> 
           {patientId && patientId !== -1 ? 'Modifier le Dossier' : 'Nouveau Dossier Patient'}
         </h2>
-        <button type="button" onClick={onCancel} className="text-slate-400 hover:text-rose-500"><X size={18} /></button>
+        <button type="button" onClick={onCancel} className="text-slate-400 hover:text-rose-500" aria-label="Fermer le formulaire"><X size={18} /></button>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 sm:p-10 space-y-2">
         <SectionHeader icon={User} title="Identité & Photo" />
         <div className="flex flex-col md:flex-row gap-8 mb-8">
           <div className="flex flex-col items-center gap-4 shrink-0">
-            <div className={`w-32 h-32 rounded-3xl border-2 ${formData.gender === 'F' ? 'border-pink-100' : 'border-blue-100'} dark:border-slate-800 bg-slate-50 dark:bg-slate-800 relative overflow-hidden flex items-center justify-center text-slate-200 shadow-inner`}>
+            <div className={`w-32 h-32 rounded-3xl border-2 ${formData.gender === 'F' ? 'border-pink-100' : 'border-blue-100'} dark:border-slate-800 bg-slate-50 dark:bg-slate-800 relative overflow-hidden flex items-center justify-center text-slate-200 shadow-inner`} role="img" aria-label="Photo du patient">
               {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <User size={40} />}
               {isCameraOpen && <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover z-10" />}
-              {isProcessing && <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 flex items-center justify-center z-20"><Loader2 className="animate-spin text-primary" /></div>}
+              {isProcessing && <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 flex items-center justify-center z-20" aria-busy="true"><Loader2 className="animate-spin text-primary" /></div>}
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={toggleCamera} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm"><Camera size={16} /></button>
+              <button type="button" onClick={toggleCamera} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm" aria-label="Ouvrir la caméra"><Camera size={16} /></button>
               {isCameraOpen && <button type="button" onClick={capturePhoto} className="px-3 bg-primary text-white rounded-xl text-[10px] font-bold uppercase tracking-tight">Capture</button>}
-              <label className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-primary hover:bg-primary hover:text-white transition-all cursor-pointer shadow-sm">
+              <label className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-primary hover:bg-primary hover:text-white transition-all cursor-pointer shadow-sm" aria-label="Importer une photo">
                 <Upload size={16} />
                 <input type="file" className="hidden" accept="image/*" onChange={async e => {
                   const f = e.target.files?.[0]; if (f) { setIsProcessing(true); try { const id = await processAndStoreImage(f); setPhotoId(id); } catch(e: any) { alert(e.message); } setIsProcessing(false); }
@@ -161,14 +161,14 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
           </div>
 
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InputField label="Nom" required value={formData.lastName} onChange={(v:string) => setFormData({...formData, lastName: v.toUpperCase()})} />
-            <InputField label="Prénom" required value={formData.firstName} onChange={(v:string) => setFormData({...formData, firstName: v})} />
-            <InputField label="Date de Naissance" required type="date" value={formData.birthDate} onChange={(v:string) => setFormData({...formData, birthDate: v})} />
+            <InputField id="lastName" label="Nom" required value={formData.lastName} onChange={(v:string) => setFormData({...formData, lastName: v.toUpperCase()})} />
+            <InputField id="firstName" label="Prénom" required value={formData.firstName} onChange={(v:string) => setFormData({...formData, firstName: capitalizeFirst(v)})} />
+            <InputField id="birthDate" label="Date de Naissance" required type="date" value={formData.birthDate} onChange={(v:string) => setFormData({...formData, birthDate: v})} />
             <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Genre</label>
-              <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl">
+              <label id="gender-label" className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Genre</label>
+              <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl" role="radiogroup" aria-labelledby="gender-label">
                 {(['M', 'F'] as const).map(g => (
-                  <button key={g} type="button" onClick={() => setFormData({...formData, gender: g})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.gender === g ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                  <button key={g} type="button" role="radio" aria-checked={formData.gender === g} onClick={() => setFormData({...formData, gender: g})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.gender === g ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
                     {g === 'M' ? 'HOMME' : 'FEMME'}
                   </button>
                 ))}
@@ -180,79 +180,114 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
         <SectionHeader icon={Phone} title="Coordonnées & Social" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <InputField 
-            label="Téléphone" 
+            id="phone" 
+            label="Téléphone Mobile" 
             type="tel" 
             value={formData.phone} 
-            onChange={handlePhoneChange} 
-            helperText="Chiffres uniquement (ex: 0612345678)"
+            onChange={(v:string) => setFormData({...formData, phone: v.replace(/\D/g, '')})} 
+            helperText="Chiffres uniquement"
           />
-          <InputField label="Email" type="email" value={formData.email} onChange={(v:string) => setFormData({...formData, email: v})} />
+          <InputField id="email" label="Email" type="email" value={formData.email} onChange={(v:string) => setFormData({...formData, email: v})} />
           <InputField id="address" label="Adresse Postale" value={formData.address} onChange={(v:string) => setFormData({...formData, address: v})} />
           <InputField id="profession" label="Profession" value={formData.profession} onChange={(v:string) => setFormData({...formData, profession: v})} />
           <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">État Civil</label>
-            <select className="w-full p-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-primary font-medium appearance-none" value={formData.familyStatus} onChange={e => setFormData({...formData, familyStatus: e.target.value})}>
+            <label htmlFor="familyStatus" className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">État Civil</label>
+            <select id="familyStatus" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:border-primary font-medium appearance-none" value={formData.familyStatus} onChange={e => setFormData({...formData, familyStatus: e.target.value})}>
               <option value="Célibataire">Célibataire</option>
               <option value="Marié(e)">Marié(e) / Pacsé(e)</option>
               <option value="Divorcé(e)">Divorcé(e)</option>
               <option value="Veuf/Veuve">Veuf/Veuve</option>
             </select>
           </div>
-          <InputField label="Enfants" value={formData.hasChildren} placeholder="ex: 2 enfants" onChange={(v:string) => setFormData({...formData, hasChildren: v})} />
+          <InputField id="hasChildren" label="Enfants" value={formData.hasChildren} placeholder="ex: 2 enfants" onChange={(v:string) => setFormData({...formData, hasChildren: v})} />
         </div>
 
         <SectionHeader icon={Activity} title="Mode de vie" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <InputField label="Sport" value={formData.physicalActivity} onChange={(v:string) => setFormData({...formData, physicalActivity: v})} />
+          <InputField id="physicalActivity" label="Sport" value={formData.physicalActivity} onChange={(v:string) => setFormData({...formData, physicalActivity: v})} />
           <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Latéralité</label>
-            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl">
+            <label id="laterality-label" className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Latéralité</label>
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl" role="radiogroup" aria-labelledby="laterality-label">
               {(['D', 'G'] as const).map(l => (
-                <button key={l} type="button" onClick={() => setFormData({...formData, laterality: l})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.laterality === l ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                <button key={l} type="button" role="radio" aria-checked={formData.laterality === l} onClick={() => setFormData({...formData, laterality: l})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.laterality === l ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
                   {l === 'D' ? 'DROITIER' : 'GAUCHER'}
                 </button>
               ))}
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Tabac</label>
-            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl mb-2">
-              <button type="button" onClick={() => setFormData({...formData, isSmoker: false, isFormerSmoker: false})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${!formData.isSmoker && !formData.isFormerSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>NON</button>
-              <button type="button" onClick={() => setFormData({...formData, isSmoker: true, isFormerSmoker: false})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.isSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>OUI</button>
-              <button type="button" onClick={() => setFormData({...formData, isSmoker: false, isFormerSmoker: true})} className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.isFormerSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>ANC.</button>
+            <label id="smoking-label" className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-1">Tabac</label>
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl mb-2" role="radiogroup" aria-labelledby="smoking-label">
+              <button 
+                type="button" 
+                role="radio"
+                aria-checked={!formData.isSmoker && !formData.isFormerSmoker}
+                onClick={() => setFormData({...formData, isSmoker: false, isFormerSmoker: false})} 
+                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${!formData.isSmoker && !formData.isFormerSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                NON
+              </button>
+              <button 
+                type="button" 
+                role="radio"
+                aria-checked={formData.isSmoker}
+                onClick={() => setFormData({...formData, isSmoker: true, isFormerSmoker: false})} 
+                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.isSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                OUI
+              </button>
+              <button 
+                type="button" 
+                role="radio"
+                aria-checked={formData.isFormerSmoker}
+                onClick={() => setFormData({...formData, isSmoker: false, isFormerSmoker: true})} 
+                className={`flex-1 py-1.5 text-[10px] font-semibold rounded-lg transition-all ${formData.isFormerSmoker ? 'bg-white dark:bg-slate-700 text-primary shadow-sm border border-slate-200 dark:border-slate-600' : 'text-slate-400'}`}>
+                ANCIEN
+              </button>
             </div>
             {(formData.isSmoker || formData.isFormerSmoker) && (
-              <input type="text" placeholder="Détails..." className="w-full p-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none focus:border-primary" value={formData.smokerSince || ''} onChange={e => setFormData({...formData, smokerSince: e.target.value})} />
+              <input 
+                id="smokerSince"
+                type="text" 
+                placeholder="Depuis quand / Combien de temps ?" 
+                className="w-full p-2 bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none focus:border-primary"
+                value={formData.smokerSince || ''}
+                onChange={e => setFormData({...formData, smokerSince: e.target.value})}
+                aria-label="Détail durée tabagique"
+              />
             )}
           </div>
         </div>
 
         <SectionHeader icon={Stethoscope} title="Suivi Médical" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InputField label="Médecin Traitant" value={formData.gpName} onChange={(v:string) => setFormData({...formData, gpName: v})} />
-          <InputField label="Ville Médecin" value={formData.gpCity} onChange={(v:string) => setFormData({...formData, gpCity: v})} />
+          <InputField id="gpName" label="Médecin Traitant" value={formData.gpName} placeholder="ex: Dr. Martin" onChange={(v:string) => setFormData({...formData, gpName: v})} />
+          <InputField id="gpCity" label="Ville Médecin" value={formData.gpCity} onChange={(v:string) => setFormData({...formData, gpCity: v})} />
           <div className="sm:col-span-2">
-            <InputField label="Traitements actuels" value={formData.currentTreatment} onChange={(v:string) => setFormData({...formData, currentTreatment: v})} />
+            <InputField id="currentTreatment" label="Traitements actuels" value={formData.currentTreatment} onChange={(v:string) => setFormData({...formData, currentTreatment: v})} />
           </div>
+          {formData.gender === 'F' && (
+            <div className="sm:col-span-2">
+              <InputField id="contraception" label="Contraception" value={formData.contraception} onChange={(v:string) => setFormData({...formData, contraception: v})} />
+            </div>
+          )}
         </div>
 
         <SectionHeader icon={History} title="Antécédents" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <TextAreaField label="Chirurgicaux" icon={Scissors} iconColor="text-rose-500" value={formData.antSurgical} onChange={(v:string) => setFormData({...formData, antSurgical: v})} />
-          <TextAreaField label="Traumato / Rhumato" icon={Bone} iconColor="text-blue-500" value={formData.antTraumaRhuma} onChange={(v:string) => setFormData({...formData, antTraumaRhuma: v})} />
-          <TextAreaField label="Ophtalmo" icon={Eye} iconColor="text-cyan-500" value={formData.antOphtalmo} onChange={(v:string) => setFormData({...formData, antOphtalmo: v})} />
+          <TextAreaField id="antSurgical" label="Chirurgicaux" icon={Scissors} iconColor="text-rose-500" value={formData.antSurgical} onChange={(v:string) => setFormData({...formData, antSurgical: v})} />
+          <TextAreaField id="antTraumaRhuma" label="Traumato & Rhumato" icon={Bone} iconColor="text-blue-500" value={formData.antTraumaRhuma} onChange={(v:string) => setFormData({...formData, antTraumaRhuma: v})} />
+          <TextAreaField id="antOphtalmo" label="Ophtalmo" icon={Eye} iconColor="text-cyan-500" value={formData.antOphtalmo} onChange={(v:string) => setFormData({...formData, antOphtalmo: v})} />
           <TextAreaField id="antORL" label="ORL" icon={Ear} iconColor="text-amber-500" value={formData.antORL} onChange={(v:string) => setFormData({...formData, antORL: v})} />
           <TextAreaField id="antDigestive" label="Digestifs" icon={Pill} iconColor="text-emerald-500" value={formData.antDigestive} onChange={(v:string) => setFormData({...formData, antDigestive: v})} />
           <TextAreaField id="antNotes" label="Notes liées à l'antécédent" icon={StickyNote} iconColor="text-slate-500" value={formData.antNotes} onChange={(v:string) => setFormData({...formData, antNotes: v})} />
           <div className="sm:col-span-2">
-            <TextAreaField label="Autres notes médicales" icon={ClipboardList} value={formData.medicalHistory} onChange={(v:string) => setFormData({...formData, medicalHistory: v})} />
+            <TextAreaField id="medicalHistory" label="Autres notes médicales" icon={ClipboardList} value={formData.medicalHistory} onChange={(v:string) => setFormData({...formData, medicalHistory: v})} />
           </div>
         </div>
 
         <div className="flex gap-4 pt-10 sticky bottom-0 bg-white dark:bg-slate-900 py-4 border-t border-slate-100 dark:border-slate-800">
           <button type="button" onClick={onCancel} className="flex-1 py-3 text-slate-500 font-semibold text-[10px] uppercase tracking-widest border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 transition-all">Annuler</button>
           <button type="submit" className="flex-[2] py-3 bg-primary text-white font-semibold text-[10px] uppercase tracking-widest rounded-xl shadow-lg hover:brightness-105 transition-all flex items-center justify-center gap-2">
-            <Save size={18} /> Enregistrer le dossier
+            <Save size={18} aria-hidden="true" /> Enregistrer
           </button>
         </div>
       </form>
