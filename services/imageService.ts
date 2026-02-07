@@ -84,7 +84,7 @@ export const processAndStoreImage = async (
 
       const { hd, thumb, dimensions } = e.data;
       try {
-        // Correction: 'transaction' est une méthode héritée de Dexie, disponible sur l'instance db.
+        // Use the transaction method inherited from the base Dexie class to ensure atomic persistence of metadata and blobs.
         const mediaId = await db.transaction('rw', [db.media_metadata, db.media_blobs, db.thumbnails], async () => {
           const id = await db.media_metadata.add({
             patientId, sessionId, name, mimeType: 'image/jpeg',

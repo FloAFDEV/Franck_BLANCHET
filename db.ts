@@ -1,8 +1,8 @@
 
-import Dexie, { type Table } from 'dexie';
+import { Dexie, type Table } from 'dexie';
 import { Patient, Session, Practitioner, MediaMetadata, MediaBlob } from './types';
 
-// Correction: Dexie doit être importé par défaut pour un héritage correct des types et méthodes
+// Use named import { Dexie } from 'dexie' to ensure correct class inheritance and type resolution for Dexie methods.
 export class OsteoDB extends Dexie {
   patients!: Table<Patient, number>;
   sessions!: Table<Session, number>;
@@ -14,7 +14,7 @@ export class OsteoDB extends Dexie {
   constructor() {
     super('OsteoSuiviDB');
     
-    // Initialisation de la structure de la base de données via la méthode version() héritée
+    // Initialisation de la structure de la base de données via la méthode version() héritée de Dexie.
     this.version(4).stores({
       patients: '++id, lastName, firstName, gender, photoId',
       sessions: '++id, patientId, date',

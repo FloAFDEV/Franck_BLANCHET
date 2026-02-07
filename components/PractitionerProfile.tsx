@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../db';
 import { Practitioner } from '../types';
-// Ajout de l'icône HardDrive manquante dans la liste des imports
-import { Camera, Upload, Save, Check, UserCircle, Palette, Lock, Eye, EyeOff, Moon, Sun, Settings, X, Crop, ZoomIn, ZoomOut, Info, AlertTriangle, ShieldCheck, Download, HardDrive } from 'lucide-react';
+import { Camera, Upload, Save, Check, UserCircle, Palette, Lock, Eye, EyeOff, Moon, Sun, Settings, X, Crop, ZoomIn, ZoomOut, Info, AlertTriangle, ShieldCheck, Download, HardDrive, ShieldAlert } from 'lucide-react';
 
 interface PractitionerProfileProps {
   onSuccess: () => void;
@@ -27,7 +26,6 @@ const CropperModal: React.FC<{
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -137,12 +135,18 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
   const [formData, setFormData] = useState<Practitioner>({
     id: 1, firstName: '', lastName: '', photo: '', themeColor: '#14b8a6', password: '', isDarkMode: false
   });
+  const [originalPassword, setOriginalPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [isPersisted, setIsPersisted] = useState<boolean | null>(null);
 
   useEffect(() => {
-    db.profile.get(1).then(p => { if (p) setFormData(p); });
+    db.profile.get(1).then(p => { 
+      if (p) {
+        setFormData(p); 
+        setOriginalPassword(p.password || '');
+      }
+    });
     if (navigator.storage && navigator.storage.persisted) {
       navigator.storage.persisted().then(setIsPersisted);
     }
@@ -150,6 +154,13 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation du code : minimum 4 caractères si renseigné
+    if (formData.password && formData.password.length < 4) {
+      alert("Sécurité insuffisante : le code d'accès doit comporter au moins 4 caractères.");
+      return;
+    }
+
     await db.profile.put(formData);
     onSuccess();
   };
@@ -177,10 +188,26 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
   };
 
   const handleClearPassword = () => {
-    if (confirm("Voulez-vous vraiment supprimer le code d'accès ? L'application ne sera plus sécurisée au démarrage.")) {
+    if (!originalPassword) return;
+
+    // Étape 1 : Demander le code actuel
+    const verify = prompt("Veuillez saisir votre code actuel pour autoriser la suppression :");
+    
+    if (verify === null) return; // Annulation
+
+    if (verify !== originalPassword) {
+      alert("Code incorrect. La suppression a été refusée pour votre sécurité.");
+      return;
+    }
+
+    // Étape 2 : Confirmation finale
+    if (confirm("Confirmation : Voulez-vous vraiment désactiver la protection par code ? L'accès à vos données patients ne sera plus sécurisé au démarrage de l'application.")) {
       setFormData({ ...formData, password: '' });
+      setOriginalPassword('');
     }
   };
+
+  const isPasswordTooShort = formData.password && formData.password.length > 0 && formData.password.length < 4;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -250,13 +277,41 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
           {/* Security */}
           <div className="space-y-1.5">
             <div className="flex justify-between items-center px-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Code de déverrouillage</label>
-              {formData.password && <button type="button" onClick={handleClearPassword} className="text-[9px] font-bold text-rose-500 uppercase tracking-tighter underline">Supprimer le code</button>}
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Lock size={10} className="text-primary" /> Code de déverrouillage
+              </label>
+              {originalPassword && (
+                <button 
+                  type="button" 
+                  onClick={handleClearPassword} 
+                  className="text-[9px] font-bold text-rose-500 uppercase tracking-tighter underline hover:text-rose-600 transition-colors"
+                >
+                  Supprimer le code
+                </button>
+              )}
             </div>
             <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} placeholder="Définir un code pour sécuriser l'ouverture" className="w-full p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-center text-lg font-bold tracking-[0.5em] outline-none focus:border-primary transition-all shadow-sm" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-colors">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+              <input 
+                type={showPassword ? 'text' : 'password'} 
+                placeholder="4 caractères minimum" 
+                className={`w-full p-3.5 bg-slate-50 dark:bg-slate-800/40 border-2 rounded-2xl text-center text-lg font-bold tracking-[0.5em] outline-none transition-all shadow-sm ${isPasswordTooShort ? 'border-amber-300 focus:border-amber-400' : 'border-slate-100 dark:border-slate-800 focus:border-primary'}`} 
+                value={formData.password || ''} 
+                onChange={e => setFormData({ ...formData, password: e.target.value })} 
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-primary transition-colors">
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
+            {isPasswordTooShort && (
+              <p className="text-[9px] text-amber-600 font-bold uppercase tracking-widest px-1 flex items-center gap-1 animate-pulse">
+                <ShieldAlert size={10} /> Le code est trop court (min. 4)
+              </p>
+            )}
+            {!formData.password && (
+              <p className="text-[9px] text-slate-400 font-medium italic px-1">
+                Laissez vide pour désactiver la protection au démarrage.
+              </p>
+            )}
           </div>
 
           {/* Personalization */}
@@ -291,7 +346,11 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
           <div className="flex gap-4 pt-4">
             <button type="button" onClick={onCancel} className="flex-1 py-4 text-slate-500 font-bold text-[11px] uppercase tracking-widest border border-slate-200 dark:border-slate-800 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all">Annuler</button>
-            <button type="submit" className="flex-[2] py-4 bg-primary text-white font-bold text-[11px] uppercase tracking-widest rounded-2xl shadow-xl hover:brightness-105 active:scale-95 transition-all flex items-center justify-center gap-2">
+            <button 
+              type="submit" 
+              disabled={isPasswordTooShort}
+              className={`flex-[2] py-4 text-white font-bold text-[11px] uppercase tracking-widest rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 ${isPasswordTooShort ? 'bg-slate-300 cursor-not-allowed opacity-50' : 'bg-primary hover:brightness-105 active:scale-95'}`}
+            >
               <Save size={18} /> Enregistrer le profil
             </button>
           </div>
@@ -300,7 +359,7 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
 
       <div className="p-10 text-center space-y-2 opacity-50">
         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 flex items-center justify-center gap-2">
-          <HardDrive size={10} /> v1.2.0 • Local-First Architecture
+          <HardDrive size={10} /> v1.2.1 • Security First Architecture
         </p>
       </div>
     </div>
