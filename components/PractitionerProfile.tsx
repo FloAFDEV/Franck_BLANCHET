@@ -32,17 +32,17 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
   };
 
   return (
-    <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="max-w-xl mx-auto bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-in fade-in zoom-in-95 duration-200" role="dialog" aria-labelledby="profile-title">
       <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex justify-between items-center">
-        <h2 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest flex items-center gap-3">
-          <Settings className="text-primary" size={18} /> Profil & Configuration
+        <h2 id="profile-title" className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-widest flex items-center gap-3">
+          <Settings className="text-primary" size={18} aria-hidden="true" /> Profil & Configuration
         </h2>
-        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors" aria-label="Fermer les paramètres"><X size={18} /></button>
       </div>
 
       <form onSubmit={handleSubmit} className="p-8 space-y-8">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-28 h-28 rounded-2xl border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+          <div className="w-28 h-28 rounded-2xl border-4 border-white dark:border-slate-800 shadow-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-slate-800" role="img" aria-label="Avatar du praticien">
             {formData.photo ? <img src={formData.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle className="text-slate-300" size={48} />}
           </div>
           <button type="button" className="text-[10px] font-bold text-primary uppercase tracking-widest hover:underline" onClick={() => {
@@ -55,41 +55,41 @@ const PractitionerProfile: React.FC<PractitionerProfileProps> = ({ onSuccess, on
                 r.readAsDataURL(file);
               }
             }; f.click();
-          }}>Changer la photo</button>
+          }} aria-label="Modifier la photo de profil">Changer la photo</button>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nom</label>
-            <input required type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-primary" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} />
+            <label htmlFor="p-lastName" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nom</label>
+            <input id="p-lastName" required type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-primary" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} aria-required="true" />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prénom</label>
-            <input required type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-primary" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} />
+            <label htmlFor="p-firstName" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prénom</label>
+            <input id="p-firstName" required type="text" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold outline-none focus:border-primary" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} aria-required="true" />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mot de passe de verrouillage</label>
+          <label htmlFor="p-password" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mot de passe de verrouillage</label>
           <div className="relative">
-            <input type={showPassword ? 'text' : 'password'} placeholder="Optionnel" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold tracking-widest outline-none focus:border-primary" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors">{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+            <input id="p-password" type={showPassword ? 'text' : 'password'} placeholder="Optionnel" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold tracking-widest outline-none focus:border-primary" value={formData.password || ''} onChange={e => setFormData({ ...formData, password: e.target.value })} />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
           </div>
         </div>
 
         <div className="flex justify-between items-end">
           <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couleur du cabinet</label>
-            <div className="flex gap-3">
+            <label id="theme-label" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Couleur du cabinet</label>
+            <div className="flex gap-3" role="radiogroup" aria-labelledby="theme-label">
               {THEME_COLORS.map(c => (
-                <button key={c.value} type="button" onClick={() => setFormData({ ...formData, themeColor: c.value })} className={`w-8 h-8 rounded-lg border-2 transition-all ${formData.themeColor === c.value ? 'border-slate-900 dark:border-white scale-110 shadow-md' : 'border-transparent opacity-50'}`} style={{ backgroundColor: c.value }}>
-                  {formData.themeColor === c.value && <Check size={14} className="mx-auto text-white" strokeWidth={3} />}
+                <button key={c.value} type="button" role="radio" aria-checked={formData.themeColor === c.value} aria-label={`Couleur ${c.name}`} onClick={() => setFormData({ ...formData, themeColor: c.value })} className={`w-8 h-8 rounded-lg border-2 transition-all ${formData.themeColor === c.value ? 'border-slate-900 dark:border-white scale-110 shadow-md' : 'border-transparent opacity-50'}`} style={{ backgroundColor: c.value }}>
+                  {formData.themeColor === c.value && <Check size={14} className="mx-auto text-white" strokeWidth={3} aria-hidden="true" />}
                 </button>
               ))}
             </div>
           </div>
-          <button type="button" onClick={() => setFormData({ ...formData, isDarkMode: !formData.isDarkMode })} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-slate-50 dark:hover:bg-slate-800">
-            {formData.isDarkMode ? <Moon size={14} /> : <Sun size={14} />} {formData.isDarkMode ? 'Mode Sombre' : 'Mode Clair'}
+          <button type="button" onClick={() => setFormData({ ...formData, isDarkMode: !formData.isDarkMode })} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-all hover:bg-slate-50 dark:hover:bg-slate-800" aria-pressed={formData.isDarkMode}>
+            {formData.isDarkMode ? <Moon size={14} aria-hidden="true" /> : <Sun size={14} aria-hidden="true" />} {formData.isDarkMode ? 'Mode Sombre' : 'Mode Clair'}
           </button>
         </div>
 

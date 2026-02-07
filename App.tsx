@@ -7,7 +7,7 @@ import PatientForm from './components/PatientForm';
 import PatientDetail from './components/PatientDetail';
 import PractitionerProfile from './components/PractitionerProfile';
 import LoginView from './components/LoginView';
-import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, UserCircle, Settings, Download, Upload, HardDrive, Loader2, Bell, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ used: number, total: number } | null>(null);
   const [isBackupDue, setIsBackupDue] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const checkBackupStatus = async (p: Practitioner) => {
@@ -25,8 +26,15 @@ const App: React.FC = () => {
     const currentTotalRecords = patientCount + sessionCount;
     const lastDate = p.lastExportDate || 0;
     const lastCount = p.lastExportRecordCount || 0;
-    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
-    setIsBackupDue((Date.now() - lastDate > sevenDaysInMs) || (currentTotalRecords - lastCount >= 20));
+    
+    // Notification toutes les 48 heures ou tous les 20 nouveaux enregistrements
+    const fortyEightHoursInMs = 48 * 60 * 60 * 1000;
+    const isDue = (Date.now() - lastDate > fortyEightHoursInMs) || (currentTotalRecords - lastCount >= 20);
+    
+    setIsBackupDue(isDue);
+    if (isDue) {
+      setShowNotification(true);
+    }
   };
 
   const refreshPractitioner = async () => {
@@ -119,6 +127,7 @@ const App: React.FC = () => {
         await db.profile.put(updated);
         setPractitioner(updated);
         setIsBackupDue(false);
+        setShowNotification(false);
       }
     } catch (error) { alert("Erreur export: " + error); } finally { setIsProcessing(false); }
   };
@@ -176,19 +185,41 @@ const App: React.FC = () => {
       `}</style>
 
       {isProcessing && (
-        <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center">
+        <div className="fixed inset-0 z-[100] bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm flex items-center justify-center" aria-busy="true">
           <Loader2 className="animate-spin text-primary" size={32} />
+        </div>
+      )}
+
+      {/* Notification de sauvegarde discrète */}
+      {showNotification && isBackupDue && (
+        <div className="fixed bottom-24 right-6 left-6 sm:left-auto sm:w-80 z-50 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 flex items-start gap-3">
+            <div className="p-2 bg-primary-soft rounded-lg text-primary">
+              <Bell size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-[11px] font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider mb-1">Rappel de sauvegarde</h4>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">Pensez à exporter vos données. Dernière sauvegarde : {practitioner?.lastExportDate ? new Date(practitioner.lastExportDate).toLocaleDateString() : 'jamais'}.</p>
+              <div className="flex gap-2 mt-3">
+                <button onClick={handleExportData} className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline">Exporter maintenant</button>
+                <button onClick={() => setShowNotification(false)} className="text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600">Plus tard</button>
+              </div>
+            </div>
+            <button onClick={() => setShowNotification(false)} className="text-slate-300 hover:text-slate-500" aria-label="Fermer la notification">
+              <X size={14} />
+            </button>
+          </div>
         </div>
       )}
 
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           {currentView !== 'DASHBOARD' && (
-            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
+            <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500" aria-label="Retour au tableau de bord">
               <ChevronLeft size={20} />
             </button>
           )}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')} role="button" aria-label="Logo OstéoSuivi">
             <div className="w-9 h-9 bg-primary rounded-lg overflow-hidden flex items-center justify-center text-white">
               {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={24} />}
             </div>
@@ -206,17 +237,17 @@ const App: React.FC = () => {
         <div className="flex items-center gap-1">
           {currentView === 'DASHBOARD' && (
             <>
-              <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} />
-              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde">
+              <input type="file" ref={importFileRef} className="hidden" accept=".json" onChange={handleImportData} aria-hidden="true" />
+              <button onClick={() => importFileRef.current?.click()} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Importer une sauvegarde" aria-label="Importer une sauvegarde">
                 <Download size={18} />
               </button>
               <div className="relative">
-                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter une sauvegarde">
+                <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter une sauvegarde" aria-label="Exporter une sauvegarde">
                   <Upload size={18} />
                 </button>
                 {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900" />}
               </div>
-              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres">
+              <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres" aria-label="Accéder aux paramètres">
                 <Settings size={18} />
               </button>
             </>
@@ -253,7 +284,7 @@ const App: React.FC = () => {
       </main>
 
       {currentView === 'DASHBOARD' && (
-        <button onClick={() => navigateTo('ADD_PATIENT')} className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all sm:hidden">
+        <button onClick={() => navigateTo('ADD_PATIENT')} className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all sm:hidden" aria-label="Ajouter un nouveau patient">
           <Plus size={24} />
         </button>
       )}
