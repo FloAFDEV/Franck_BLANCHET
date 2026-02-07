@@ -26,7 +26,9 @@ const getAge = (birthDate: string) => {
 
 const capitalize = (str: string) => {
   if (!str || typeof str !== 'string') return "";
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  const trimmed = str.trim();
+  if (!trimmed) return "-";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 };
 
 const SectionHeader = ({ icon: Icon, title }: any) => (
@@ -103,22 +105,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     fetchData(); 
     return () => { if (photoUrl) revokeUrl(photoUrl); }; 
   }, [fetchData]);
-
-  const filteredSessions = useMemo(() => {
-    return sessions.filter(s => {
-      const sessionDate = new Date(s.date);
-      const yearStr = sessionDate.getFullYear().toString();
-      const matchesSearch = s.hdlm.toLowerCase().includes(sessionSearch.toLowerCase()) || 
-                           s.treatment.toLowerCase().includes(sessionSearch.toLowerCase()) ||
-                           yearStr.includes(sessionSearch);
-      if (!matchesSearch) return false;
-      if (dateFilter === 'ALL') return true;
-      const now = new Date();
-      if (dateFilter === 'MONTH') return sessionDate.getMonth() === now.getMonth() && sessionDate.getFullYear() === now.getFullYear();
-      if (dateFilter === 'YEAR') return sessionDate.getFullYear() === now.getFullYear();
-      return true;
-    });
-  }, [sessions, sessionSearch, dateFilter]);
 
   const stats = useMemo(() => {
     const total = sessions.length;
@@ -233,7 +219,9 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         <div className="flex-1 w-full text-center lg:text-left">
           <div className="flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6 mb-8">
             <div className="space-y-2">
-              <h2 className="text-4xl font-bold text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tight">{patient.lastName} <span className="font-light text-slate-400 lowercase">{capitalize(patient.firstName)}</span></h2>
+              <h2 className="text-4xl font-bold text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tight">
+                {patient.lastName} <span className="font-light text-slate-400">{capitalize(patient.firstName)}</span>
+              </h2>
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-3">
                 <span className={`px-3 py-1.5 rounded-xl text-[10px] font-semibold uppercase tracking-widest ${patient.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'}`}>{patient.gender === 'M' ? 'HOMME' : 'FEMME'} • {getAge(patient.birthDate)} ANS</span>
                 <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-2"><Calendar size={14} /> {new Date(patient.birthDate).toLocaleDateString()}</span>
@@ -307,7 +295,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           </button>
         </div>
         <div className="space-y-5">
-          {filteredSessions.length > 0 ? filteredSessions.map(s => {
+          {sessions.length > 0 ? sessions.map(s => {
             const open = expandedSessions.has(s.id!);
             return (
               <div key={s.id} className={`bg-white dark:bg-slate-900 border rounded-[2rem] transition-all duration-300 ${open ? 'border-primary shadow-2xl scale-[1.01]' : 'border-slate-100 dark:border-slate-800 shadow-sm hover:border-slate-200'}`}>
