@@ -43,7 +43,7 @@ const App: React.FC = () => {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
-      alert("Sur iPhone/Safari : Appuyez sur le bouton 'Partager' (carré avec flèche) puis sur 'Sur l'écran d'accueil'.");
+      alert("Installation locale : \n\n• Sur iPhone/Safari : Appuyez sur 'Partager' puis sur 'Sur l'écran d'accueil'.\n• Sur Android/Chrome : L'installation devrait démarrer automatiquement.\n• Sur Ordinateur : Cliquez sur l'icône dans la barre d'adresse.");
       return;
     }
     deferredPrompt.prompt();
@@ -108,17 +108,6 @@ const App: React.FC = () => {
 
   const themeStyles = React.useMemo(() => {
     let color = practitioner?.themeColor || '#14b8a6';
-    const isDark = practitioner?.isDarkMode;
-    
-    const lighten = (hex: string, percent: number) => {
-      const num = parseInt(hex.replace("#",""), 16),
-      amt = Math.round(2.55 * percent),
-      R = (num >> 16) + amt,
-      G = (num >> 8 & 0x00FF) + amt,
-      B = (num & 0x0000FF) + amt;
-      return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
-    };
-
     return {
       '--primary': color,
       '--primary-soft': `${color}15`,
@@ -140,7 +129,7 @@ const App: React.FC = () => {
       const sessions = await db.sessions.toArray();
       const profiles = await db.profile.toArray();
       const mediaMeta = await db.media_metadata.toArray();
-      const dataToExport = { app: "OstéoSuivi", version: "3.6", exportDate: new Date().toISOString(), practitioner: profiles, patients, sessions, mediaMeta };
+      const dataToExport = { app: "OstéoSuivi", version: "3.6.1", exportDate: new Date().toISOString(), practitioner: profiles, patients, sessions, mediaMeta };
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -203,6 +192,13 @@ const App: React.FC = () => {
         .bg-primary-soft { background-color: var(--primary-soft); }
         .text-primary { color: var(--primary); }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+        @keyframes pulse-soft {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.02); }
+        }
+        .animate-pwa-button {
+          animation: pulse-soft 2s infinite ease-in-out;
+        }
       `}</style>
 
       {isProcessing && (
@@ -211,7 +207,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           {currentView !== 'DASHBOARD' && (
             <button onClick={() => navigateTo('DASHBOARD')} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-500">
@@ -219,25 +215,25 @@ const App: React.FC = () => {
             </button>
           )}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigateTo('DASHBOARD')}>
-            <div className="w-9 h-9 bg-primary rounded-xl overflow-hidden flex items-center justify-center text-white shadow-sm">
+            <div className="w-10 h-10 bg-primary rounded-xl overflow-hidden flex items-center justify-center text-white shadow-md border-2 border-white dark:border-slate-800">
               {practitioner?.photo ? <img src={practitioner.photo} alt="" className="w-full h-full object-cover" /> : <UserCircle size={24} />}
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">OstéoSuivi</span>
-              <div className="flex items-center gap-1.5 mt-1">
+              <div className="flex items-center gap-2 mt-1.5">
                 {(!isPWA) ? (
                   <button 
                     onClick={handleInstallClick}
-                    className="flex items-center gap-1 text-[9px] font-bold text-white bg-primary px-2 py-0.5 rounded-lg hover:brightness-110 transition-all uppercase tracking-wider shadow-sm"
+                    className="flex items-center gap-1.5 text-[9px] font-bold text-white bg-primary px-3 py-1 rounded-lg hover:brightness-110 transition-all uppercase tracking-wider shadow-md animate-pwa-button"
                   >
-                    <DownloadCloud size={10} /> Installer
+                    <DownloadCloud size={10} /> Installer l'App
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1 text-[9px] font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-tight">
-                    <ShieldCheck size={10} /> Sécurisé
+                  <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-md">
+                    <ShieldCheck size={10} /> App locale
                   </div>
                 )}
-                <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                <div className="w-1 h-1 bg-slate-300 rounded-full" />
                 <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase">
                   <HardDrive size={10} /> {usagePercent}%
                 </div>
@@ -256,7 +252,7 @@ const App: React.FC = () => {
                 <button onClick={handleExportData} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Exporter">
                   <Upload size={18} />
                 </button>
-                {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900" />}
+                {isBackupDue && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900" />}
               </div>
               <button onClick={() => navigateTo('PRACTITIONER_PROFILE')} className="p-2 text-slate-400 hover:text-primary transition-colors" title="Paramètres">
                 <Settings size={18} />
