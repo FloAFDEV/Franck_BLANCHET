@@ -2,9 +2,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Info, X, Scissors, Bone, Ear, Pill, StickyNote } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Info, X, Scissors, Bone, Ear, Pill, StickyNote, FileText } from 'lucide-react';
 import SessionForm from './SessionForm';
 import { getImageUrl, revokeUrl } from '../services/imageService';
+import jsPDF from 'https://esm.sh/jspdf';
+import autoTable from 'https://esm.sh/jspdf-autotable';
 
 interface PatientDetailProps {
   patientId: number;
@@ -119,6 +121,94 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     return { total, thisYear, lastSessionDate };
   }, [sessions]);
 
+  const exportPDF = useCallback(() => {
+    if (!patient) return;
+    
+    const doc = new jsPDF();
+    const primaryColor = [20, 184, 166]; // #14b8a6
+
+    // Header
+    doc.setFontSize(22);
+    doc.setTextColor(40, 44, 52);
+    doc.text(`${patient.lastName.toUpperCase()} ${capitalize(patient.firstName)}`, 20, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Né(e) le ${new Date(patient.birthDate).toLocaleDateString()} (${getAge(patient.birthDate)} ans) - ${patient.gender === 'M' ? 'Homme' : 'Femme'}`, 20, 28);
+
+    // Separator line
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 32, 190, 32);
+
+    // Patient Info Table
+    autoTable(doc, {
+      startY: 38,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2 },
+      columnStyles: { 0: { fontStyle: 'bold', width: 40 } },
+      body: [
+        ['Profession', patient.profession || '-'],
+        ['Téléphone', patient.phone || '-'],
+        ['Email', patient.email || '-'],
+        ['Adresse', patient.address || '-'],
+        ['Médecin Traitant', patient.gpName || '-'],
+        ['Situation Familiale', `${patient.familyStatus || '-'} ${patient.hasChildren && patient.hasChildren !== 'Non' ? `(${patient.hasChildren})` : ''}`],
+      ],
+    });
+
+    // Medical History Section
+    doc.setFontSize(14);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    const medicalStartY = (doc as any).lastAutoTable.finalY + 15;
+    doc.text("Antécédents & Terrain", 20, medicalStartY);
+
+    autoTable(doc, {
+      startY: medicalStartY + 5,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: primaryColor, textColor: 255 },
+      body: [
+        ['Chirurgicaux', patient.antSurgical || '-'],
+        ['Traumato/Rhumato', patient.antTraumaRhuma || '-'],
+        ['Digestifs', patient.antDigestive || '-'],
+        ['ORL / Ophtalmo', `${patient.antORL || '-'} / ${patient.antOphtalmo || '-'}`],
+        ['Mode de vie', `${patient.isSmoker ? 'Fumeur' : patient.isFormerSmoker ? 'Ancien Fumeur' : 'Non fumeur'} ${patient.smokerSince ? `(${patient.smokerSince})` : ''} - Sport: ${patient.physicalActivity || '-'}`],
+        ['Traitements', patient.currentTreatment || '-'],
+        ['Notes médicales', patient.medicalHistory || '-'],
+      ],
+    });
+
+    // Sessions History Section
+    doc.setFontSize(14);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    const sessionsStartY = (doc as any).lastAutoTable.finalY + 15;
+    doc.text("Historique des consultations", 20, sessionsStartY);
+
+    const sessionData = sessions.map(s => [
+      new Date(s.date).toLocaleDateString(),
+      s.hdlm || '-',
+      s.treatment || '-',
+      s.advice || '-'
+    ]);
+
+    autoTable(doc, {
+      startY: sessionsStartY + 5,
+      head: [['Date', 'Motif / HDLM', 'Traitement', 'Conseils']],
+      body: sessionData,
+      theme: 'striped',
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: primaryColor, textColor: 255 },
+      columnStyles: {
+        0: { width: 25 },
+        1: { width: 50 },
+        2: { width: 50 },
+        3: { width: 45 },
+      }
+    });
+
+    doc.save(`Fiche_${patient.lastName}_${patient.firstName}.pdf`);
+  }, [patient, sessions]);
+
   if (!patient) return null;
 
   const toggleSession = (id: number) => {
@@ -175,8 +265,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
 
   return (
     <div className="space-y-12 pb-24 animate-in fade-in duration-500">
-      <div className="px-2">
-        <p className="text-[10px] font-extralight text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] mb-2">Fiche Patient</p>
+      <div className="px-2 flex items-center justify-between">
+        <p className="text-[10px] font-extralight text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em]">Fiche Patient</p>
+        <button 
+          onClick={exportPDF}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-500 transition-all shadow-sm active:scale-95"
+        >
+          <FileText size={14} /> Exporter PDF
+        </button>
       </div>
 
       <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col lg:flex-row gap-10 items-center lg:items-start">
@@ -220,8 +316,8 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             </div>
             
             <div className="flex gap-3">
-              <button onClick={onEdit} className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 hover:text-primary transition-all shadow-md active:scale-95"><Edit3 size={20} /></button>
-              <button onClick={handleDelete} className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-md active:scale-95"><Trash2 size={20} /></button>
+              <button onClick={onEdit} className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 hover:text-primary transition-all shadow-md active:scale-95" title="Modifier"><Edit3 size={20} /></button>
+              <button onClick={handleDelete} className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-md active:scale-95" title="Supprimer"><Trash2 size={20} /></button>
             </div>
           </div>
           
