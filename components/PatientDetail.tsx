@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones, Info } from 'lucide-react';
 import SessionForm from './SessionForm';
 import { getImageUrl, revokeUrl } from '../services/imageService';
 
@@ -22,20 +22,19 @@ const getAge = (birthDate: string) => {
   return age;
 };
 
-// Helpers déplacés hors du composant
 const SectionHeader = ({ icon: Icon, title }: any) => (
-  <div className="flex items-center gap-2 mb-4 text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] px-1 border-b border-slate-50 dark:border-slate-800/50 pb-2">
-    <Icon size={14} className="text-primary/70" /> {title}
+  <div className="flex items-center gap-2 mb-6 text-[10px] font-bold text-slate-400 uppercase tracking-[0.25em] px-1 border-b border-slate-100 dark:border-slate-800 pb-3">
+    <Icon size={16} className="text-primary/80" /> {title}
   </div>
 );
 
 const InfoTag = ({ label, value, icon: Icon, href }: any) => {
   const Content = (
-    <div className={`flex items-center gap-2.5 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 transition-all ${href ? 'hover:border-primary group cursor-pointer' : ''}`}>
-      {Icon && <Icon size={14} className={`shrink-0 ${href ? 'text-slate-400 group-hover:text-primary' : 'text-slate-400'}`} />}
+    <div className={`flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all ${href ? 'hover:border-primary group cursor-pointer' : ''}`}>
+      {Icon && <Icon size={16} className={`shrink-0 ${href ? 'text-slate-400 group-hover:text-primary' : 'text-slate-400'}`} />}
       <div className="min-w-0 flex-1">
-        <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-tight">{label}</p>
-        <p className={`text-xs font-medium truncate ${href ? 'text-slate-700 dark:text-slate-300 group-hover:text-primary' : 'text-slate-700 dark:text-slate-300'}`}>
+        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{label}</p>
+        <p className={`text-xs font-semibold truncate ${href ? 'text-slate-700 dark:text-slate-200 group-hover:text-primary' : 'text-slate-700 dark:text-slate-200'}`}>
           {value || '—'}
         </p>
       </div>
@@ -51,12 +50,12 @@ const InfoTag = ({ label, value, icon: Icon, href }: any) => {
 };
 
 const MedicalCard = ({ title, content, icon: Icon }: any) => (
-  <div className="bg-white dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-2 shadow-sm">
+  <div className="bg-white dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-3 shadow-sm hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
     <div className="flex items-center gap-2">
-      <Icon size={13} className="text-primary/60" />
-      <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">{title}</h4>
+      <Icon size={14} className="text-primary/60" />
+      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{title}</h4>
     </div>
-    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{content || "—"}</p>
+    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{content || "Aucun antécédent renseigné"}</p>
   </div>
 );
 
@@ -80,6 +79,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
 
   useEffect(() => { fetchData(); return () => { if (photoUrl) revokeUrl(photoUrl); }; }, [fetchData]);
 
+  const stats = useMemo(() => {
+    const total = sessions.length;
+    const currentYear = new Date().getFullYear();
+    const thisYear = sessions.filter(s => new Date(s.date).getFullYear() === currentYear).length;
+    const lastSessionDate = sessions.length > 0 ? sessions[0].date : null;
+    return { total, thisYear, lastSessionDate };
+  }, [sessions]);
+
   if (!patient) return null;
 
   const toggleSession = (id: number) => {
@@ -102,30 +109,63 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     setIsAddingSession(true);
   };
 
+  // Bordure header ultra-marquée
+  const genderBorder = patient.gender === 'F' 
+    ? 'border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.3)]' 
+    : 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]';
+
   return (
-    <div className="space-y-10 pb-20 animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-lg flex flex-col md:flex-row gap-8 items-center md:items-start">
-        <div className={`w-36 h-36 sm:w-40 sm:h-40 rounded-3xl border-2 ${patient.gender === 'F' ? 'border-pink-100 dark:border-pink-900/30' : 'border-blue-100 dark:border-blue-900/30'} bg-slate-50 dark:bg-slate-800 overflow-hidden shrink-0 shadow-inner flex items-center justify-center text-slate-100`}>
-          {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <User size={48} />}
+    <div className="space-y-12 pb-24 animate-in fade-in duration-300">
+      {/* HEADER PATIENT : Stats et Identité */}
+      <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col lg:flex-row gap-10 items-center lg:items-start">
+        <div className={`w-44 h-44 sm:w-52 sm:h-52 rounded-[2.5rem] border-[5px] ${genderBorder} bg-slate-50 dark:bg-slate-800 overflow-hidden shrink-0 shadow-inner flex items-center justify-center text-slate-100`}>
+          {photoUrl ? <img src={photoUrl} alt="" className="w-full h-full object-cover" /> : <User size={56} />}
         </div>
-        <div className="flex-1 w-full text-center md:text-left">
-          <div className="flex flex-col md:flex-row justify-between items-center md:items-start gap-4 mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                {patient.lastName} <span className="font-light text-slate-500">{patient.firstName}</span>
+        
+        <div className="flex-1 w-full text-center lg:text-left">
+          <div className="flex flex-col lg:flex-row justify-between items-center lg:items-start gap-6 mb-8">
+            <div className="space-y-2">
+              <h2 className="text-4xl font-black text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tight">
+                {patient.lastName} <span className="font-light text-slate-500 lowercase">{patient.firstName}</span>
               </h2>
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
-                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${patient.gender === 'F' ? 'bg-pink-50 text-pink-500 dark:bg-pink-950/20' : 'bg-blue-50 text-blue-500 dark:bg-blue-950/20'}`}>{patient.gender === 'M' ? 'H' : 'F'} • {getAge(patient.birthDate)} ans</span>
-                <span className="px-2.5 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[9px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><Calendar size={12} /> {new Date(patient.birthDate).toLocaleDateString()}</span>
-                {patient.isSmoker && <span className="px-2.5 py-1 bg-amber-50 text-amber-600 dark:bg-amber-950/20 rounded-lg text-[9px] font-bold uppercase tracking-widest">Fumeur</span>}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-3">
+                <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${patient.gender === 'F' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/30' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30'}`}>
+                  {patient.gender === 'M' ? 'HOMME' : 'FEMME'} • {getAge(patient.birthDate)} ANS
+                </span>
+                <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <Calendar size={14} /> {new Date(patient.birthDate).toLocaleDateString()}
+                </span>
+                {patient.isSmoker && <span className="px-3 py-1.5 bg-amber-50 text-amber-600 dark:bg-amber-900/30 rounded-xl text-[10px] font-black uppercase tracking-widest">FUMEUR</span>}
+              </div>
+              
+              {/* COMPTEUR DE SÉANCES DANS LE HEADER */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 mt-8 p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100/50 dark:border-slate-800/50">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Dernière Séance</span>
+                  <span className="text-sm font-black text-primary">
+                    {stats.lastSessionDate ? new Date(stats.lastSessionDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Première visite'}
+                  </span>
+                </div>
+                <div className="w-px h-10 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Total</span>
+                  <span className="text-sm font-black text-slate-700 dark:text-slate-300">{stats.total} séance{stats.total > 1 ? 's' : ''}</span>
+                </div>
+                <div className="w-px h-10 bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">Année {new Date().getFullYear()}</span>
+                  <span className="text-sm font-black text-slate-700 dark:text-slate-300">{stats.thisYear} séance{stats.thisYear > 1 ? 's' : ''}</span>
+                </div>
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={onEdit} className="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-500 hover:text-primary transition-all"><Edit3 size={18} /></button>
-              <button onClick={handleDelete} className="p-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-500 rounded-xl hover:bg-rose-500 hover:text-white transition-all"><Trash2 size={18} /></button>
+            
+            <div className="flex gap-3">
+              <button onClick={onEdit} className="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-slate-500 hover:text-primary transition-all shadow-md active:scale-95"><Edit3 size={20} /></button>
+              <button onClick={handleDelete} className="p-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-md active:scale-95"><Trash2 size={20} /></button>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <InfoTag label="Téléphone" value={patient.phone} icon={Phone} href={patient.phone ? `tel:${patient.phone.replace(/\s/g, '')}` : undefined} />
             <InfoTag label="Email" value={patient.email} icon={Mail} href={patient.email ? `mailto:${patient.email}` : undefined} />
             <InfoTag label="Localité" value={patient.address} icon={MapPin} href={patient.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(patient.address)}` : undefined} />
@@ -136,54 +176,62 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-8">
-          <section>
-            <SectionHeader icon={Activity} title="Suivi & Habitudes" />
-            <div className="space-y-3">
-              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm">
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Activité Sportive</p>
-                <p className="text-sm text-slate-700 dark:text-slate-300 font-medium">{patient.physicalActivity || "Sédentaire"}</p>
-              </div>
-              <div className="p-5 bg-primary-soft border border-primary-border rounded-3xl">
-                <div className="flex items-center gap-2 mb-2 text-[9px] font-bold text-primary uppercase tracking-widest"><Stethoscope size={14} /> Médecin</div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.gpName || "Non déclaré"}</p>
-                <p className="text-[10px] font-medium text-slate-500 uppercase">{patient.gpCity}</p>
-              </div>
-              <div className="p-5 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 rounded-3xl">
-                <div className="flex items-center gap-2 mb-2 text-[9px] font-bold text-amber-600 uppercase tracking-widest"><HeartPulse size={14} /> Traitement actuel</div>
-                <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic">{patient.currentTreatment || "—"}</p>
-              </div>
-              {patient.gender === 'F' && patient.contraception && (
-                <div className="p-5 bg-pink-50 dark:bg-pink-950/20 border border-pink-100 rounded-3xl">
-                  <div className="flex items-center gap-2 mb-2 text-[9px] font-bold text-pink-600 uppercase tracking-widest"><ClipboardList size={14} /> Contraception</div>
-                  <p className="text-xs text-pink-900 dark:text-pink-200 italic">{patient.contraception}</p>
-                </div>
-              )}
+      <div className="space-y-12">
+        {/* SECTION SUIVI ET HABITUDES : Grille 3 colonnes optimisée */}
+        <div className="space-y-6">
+          <SectionHeader icon={Info} title="Suivi & Habitudes de vie" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] shadow-sm flex flex-col justify-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-1">Activité Sportive</p>
+              <p className="text-sm text-slate-700 dark:text-slate-200 font-semibold">{patient.physicalActivity || "Aucune activité déclarée"}</p>
             </div>
-          </section>
+            
+            <div className="p-6 bg-primary-soft border border-primary-border rounded-[2rem] shadow-sm flex flex-col justify-center">
+              <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-primary uppercase tracking-widest px-1">
+                <Stethoscope size={16} /> Médecin Traitant
+              </div>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100 truncate">{patient.gpName || "Non renseigné"}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-1">{patient.gpCity}</p>
+            </div>
+            
+            <div className="p-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-[2rem] shadow-sm flex flex-col justify-center">
+              <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-amber-600 uppercase tracking-widest px-1">
+                <HeartPulse size={16} /> Traitement actuel
+              </div>
+              <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic font-medium">{patient.currentTreatment || "Pas de traitement en cours"}</p>
+            </div>
+            
+            {patient.gender === 'F' && patient.contraception && (
+              <div className="p-6 bg-pink-50 dark:bg-pink-900/20 border border-pink-100 dark:border-pink-900/40 rounded-[2rem] shadow-sm flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-pink-600 uppercase tracking-widest px-1">
+                  <ClipboardList size={16} /> Contraception
+                </div>
+                <p className="text-xs text-pink-900 dark:text-pink-200 italic font-medium">{patient.contraception}</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="lg:col-span-2 space-y-8">
-          <section>
-            <SectionHeader icon={History} title="Antécédents Spécifiques" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MedicalCard title="Chirurgicaux" content={patient.antSurgical} icon={ClipboardList} />
-              <MedicalCard title="Traumato & Rhumato" content={patient.antTraumaRhuma} icon={Activity} />
-              <MedicalCard title="Ophtalmo" content={patient.antOphtalmo} icon={Eye} />
-              <MedicalCard title="ORL" content={patient.antORL} icon={Headphones} />
-              <MedicalCard title="Digestifs" content={patient.antDigestive} icon={Activity} />
-              <MedicalCard title="Notes libres" content={patient.medicalHistory} icon={ClipboardList} />
-            </div>
-          </section>
+        {/* SECTION ANTÉCÉDENTS : Grille agile */}
+        <div className="space-y-6">
+          <SectionHeader icon={History} title="Antécédents & Notes Médicales" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <MedicalCard title="Chirurgicaux" content={patient.antSurgical} icon={ClipboardList} />
+            <MedicalCard title="Traumato / Rhumato" content={patient.antTraumaRhuma} icon={Activity} />
+            <MedicalCard title="Ophtalmo" content={patient.antOphtalmo} icon={Eye} />
+            <MedicalCard title="ORL" content={patient.antORL} icon={Headphones} />
+            <MedicalCard title="Digestifs" content={patient.antDigestive} icon={Activity} />
+            <MedicalCard title="Notes libres" content={patient.medicalHistory} icon={ClipboardList} />
+          </div>
         </div>
       </div>
 
-      <section className="pt-8 border-t border-slate-100 dark:border-slate-800 space-y-6">
-        <div className="flex items-center justify-between px-1">
-          <SectionHeader icon={BookOpen} title="Histoire de la maladie (HDLM)" />
-          <button onClick={() => { setEditingSession(null); setIsAddingSession(true); }} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md hover:brightness-105 transition-all">
-            <Plus size={16} /> Nouvelle Séance
+      {/* HISTORIQUE DES SÉANCES */}
+      <section className="pt-12 border-t border-slate-100 dark:border-slate-800 space-y-8">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+          <SectionHeader icon={BookOpen} title="Historique des consultations (HDLM)" />
+          <button onClick={() => { setEditingSession(null); setIsAddingSession(true); }} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl hover:brightness-105 active:scale-95 transition-all">
+            <Plus size={18} /> Nouvelle Séance
           </button>
         </div>
 
@@ -196,35 +244,52 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
           />
         )}
 
-        <div className="space-y-4">
-          {sessions.map(s => {
+        <div className="space-y-5">
+          {sessions.length > 0 ? sessions.map(s => {
             const open = expandedSessions.has(s.id!);
             return (
-              <div key={s.id} className={`bg-white dark:bg-slate-900 border rounded-2xl transition-all duration-300 ${open ? 'border-primary shadow-lg scale-[1.01]' : 'border-slate-100 dark:border-slate-800 shadow-sm'}`}>
-                <div onClick={() => toggleSession(s.id!)} className="px-6 py-4 flex items-center justify-between cursor-pointer group">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2.5 rounded-xl transition-colors ${open ? 'bg-primary text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-primary'}`}><Calendar size={18} /></div>
+              <div key={s.id} className={`bg-white dark:bg-slate-900 border rounded-[2rem] transition-all duration-300 ${open ? 'border-primary shadow-2xl scale-[1.01]' : 'border-slate-100 dark:border-slate-800 shadow-sm hover:border-slate-200'}`}>
+                <div onClick={() => toggleSession(s.id!)} className="px-8 py-5 flex items-center justify-between cursor-pointer group">
+                  <div className="flex items-center gap-6">
+                    <div className={`p-3.5 rounded-2xl transition-colors ${open ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-primary'}`}><Calendar size={22} /></div>
                     <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight truncate max-w-[200px]">{s.hdlm}</span>
+                      <span className="text-base font-black text-slate-900 dark:text-slate-100">{new Date(s.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[200px] sm:max-w-md">{s.hdlm}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={(e) => handleEditSession(e, s)} className="p-1.5 text-slate-300 hover:text-primary transition-colors"><Edit3 size={14} /></button>
-                    <ChevronDown size={18} className={`text-slate-300 transition-transform ${open ? 'rotate-180 text-primary' : ''}`} />
+                  <div className="flex items-center gap-4">
+                    <button onClick={(e) => handleEditSession(e, s)} className="p-2.5 text-slate-300 hover:text-primary hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all" title="Modifier"><Edit3 size={16} /></button>
+                    <ChevronDown size={24} className={`text-slate-300 transition-transform duration-500 ${open ? 'rotate-180 text-primary' : ''}`} />
                   </div>
                 </div>
                 {open && (
-                  <div className="px-6 pb-8 pt-4 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-50 dark:border-slate-800 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="space-y-2"><label className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5"><BookOpen size={12} /> Motif / HDLM</label><div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{s.hdlm || "—"}</div></div>
-                    <div className="space-y-2"><label className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5"><Activity size={12} /> Tests Cliniques</label><div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{s.tests || "—"}</div></div>
-                    <div className="space-y-2"><label className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5"><HeartPulse size={12} /> Traitement effectué</label><div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{s.treatment || "—"}</div></div>
-                    <div className="space-y-2"><label className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1.5"><ClipboardList size={12} /> Conseils donnés</label><div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">{s.advice || "—"}</div></div>
+                  <div className="px-8 pb-10 pt-6 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-slate-50 dark:border-slate-800 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><BookOpen size={14} className="text-primary/50" /> Motif / HDLM</label>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.hdlm || "—"}</div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Activity size={14} className="text-primary/50" /> Tests Cliniques</label>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.tests || "—"}</div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><HeartPulse size={14} className="text-primary/50" /> Traitement</label>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.treatment || "—"}</div>
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><ClipboardList size={14} className="text-primary/50" /> Conseils</label>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed italic border border-slate-100 dark:border-slate-800">{s.advice || "—"}</div>
+                    </div>
                   </div>
                 )}
               </div>
             );
-          })}
+          }) : (
+            <div className="py-16 flex flex-col items-center text-slate-400 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[3rem]">
+              <History size={32} className="opacity-10 mb-4" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em]">Aucune séance enregistrée</p>
+            </div>
+          )}
         </div>
       </section>
     </div>
