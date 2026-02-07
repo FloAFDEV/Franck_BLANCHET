@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '../db';
 import { Patient, Session } from '../types';
-import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones, Info, Filter, X } from 'lucide-react';
+import { User, Phone, Briefcase, Calendar, History, Plus, Edit3, Trash2, ChevronDown, Mail, Search, MapPin, Users, Activity, HeartPulse, Stethoscope, ClipboardList, BookOpen, ExternalLink, Eye, Headphones, Info, Filter, X, Scissors, Bone, Ear, Pill, StickyNote } from 'lucide-react';
 import SessionForm from './SessionForm';
 import { getImageUrl, revokeUrl } from '../services/imageService';
 
@@ -49,10 +49,10 @@ const InfoTag = ({ label, value, icon: Icon, href }: any) => {
   ) : Content;
 };
 
-const MedicalCard = ({ title, content, icon: Icon }: any) => (
+const MedicalCard = ({ title, content, icon: Icon, iconColor = "text-primary/60" }: any) => (
   <div className="bg-white dark:bg-slate-900/50 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col gap-3 shadow-sm hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
     <div className="flex items-center gap-2">
-      <Icon size={14} className="text-primary/60" />
+      <Icon size={14} className={iconColor} />
       <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{title}</h4>
     </div>
     <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic font-medium">{content || "Aucun antécédent renseigné"}</p>
@@ -148,7 +148,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     <div className="space-y-12 pb-24 animate-in fade-in duration-500">
       {/* IDENTIFICATION DE SECTION */}
       <div className="px-2">
-        <p className="text-[10px] font-light text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] mb-2">Fiche Patient</p>
+        <p className="text-[10px] font-extralight text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em] mb-2">Fiche Patient</p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 p-6 sm:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col lg:flex-row gap-10 items-center lg:items-start">
@@ -206,13 +206,13 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             <InfoTag label="Latéralité" value={patient.laterality === 'G' ? 'Gaucher' : 'Droitier'} icon={Activity} />
           </div>
 
-          {/* SECTION MEDECIN REFERENT */}
+          {/* SECTION MEDECIN RÉFÉRENT */}
           <div className="mt-6 p-5 bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-4">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary shrink-0">
               <Stethoscope size={20} />
             </div>
             <div className="flex-1 text-center sm:text-left min-w-0">
-              <p className="text-[10px] font-light text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-0.5">Médecin Référent</p>
+              <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-0.5">Médecin Référent</p>
               <div className="flex flex-col sm:flex-row sm:items-baseline gap-2">
                 <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{patient.gpName || "Non renseigné"}</span>
                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">{patient.gpCity && `à ${patient.gpCity}`}</span>
@@ -249,12 +249,12 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
         <div className="space-y-6">
           <SectionHeader icon={History} title="Antécédents & Notes Médicales" />
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            <MedicalCard title="Chirurgicaux" content={patient.antSurgical} icon={ClipboardList} />
-            <MedicalCard title="Traumato / Rhumato" content={patient.antTraumaRhuma} icon={Activity} />
-            <MedicalCard title="Ophtalmo" content={patient.antOphtalmo} icon={Eye} />
-            <MedicalCard title="ORL" content={patient.antORL} icon={Headphones} />
-            <MedicalCard title="Digestifs" content={patient.antDigestive} icon={Activity} />
-            <MedicalCard title="Notes libres" content={patient.medicalHistory} icon={ClipboardList} />
+            <MedicalCard title="Chirurgicaux" content={patient.antSurgical} icon={Scissors} iconColor="text-rose-500" />
+            <MedicalCard title="Traumato / Rhumato" content={patient.antTraumaRhuma} icon={Bone} iconColor="text-blue-500" />
+            <MedicalCard title="Ophtalmo" content={patient.antOphtalmo} icon={Eye} iconColor="text-cyan-500" />
+            <MedicalCard title="ORL" content={patient.antORL} icon={Ear} iconColor="text-amber-500" />
+            <MedicalCard title="Digestifs" content={patient.antDigestive} icon={Pill} iconColor="text-emerald-500" />
+            <MedicalCard title="Notes libres" content={patient.medicalHistory} icon={StickyNote} iconColor="text-slate-500" />
           </div>
         </div>
       </div>
