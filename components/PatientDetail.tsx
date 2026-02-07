@@ -144,6 +144,14 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
     ? 'border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.3)]' 
     : 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
+  // Formatage du nom du médecin
+  const formattedGpName = useMemo(() => {
+    if (!patient.gpName) return "Non renseigné";
+    const name = patient.gpName.trim();
+    if (name.toLowerCase().startsWith("dr")) return name;
+    return `Dr. ${name}`;
+  }, [patient.gpName]);
+
   return (
     <div className="space-y-12 pb-24 animate-in fade-in duration-500">
       {/* IDENTIFICATION DE SECTION */}
@@ -214,7 +222,7 @@ const PatientDetail: React.FC<PatientDetailProps> = ({ patientId, onEdit, onDele
             <div className="flex-1 text-center sm:text-left min-w-0">
               <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-0.5">Médecin Référent</p>
               <div className="flex flex-col sm:flex-row sm:items-baseline gap-2">
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{patient.gpName || "Non renseigné"}</span>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{formattedGpName}</span>
                 <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tight">{patient.gpCity && `à ${patient.gpCity}`}</span>
               </div>
             </div>

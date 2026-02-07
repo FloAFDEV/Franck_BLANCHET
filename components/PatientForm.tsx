@@ -48,7 +48,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
   const [formData, setFormData] = useState<Partial<Patient>>({
     firstName: '', lastName: '', birthDate: '', gender: 'M', phone: '', email: '', address: '',
     familyStatus: 'Célibataire', hasChildren: '', profession: '', physicalActivity: '', isSmoker: false,
-    contraception: '', currentTreatment: '', laterality: 'D', gpName: 'Dr ', gpCity: '',
+    contraception: '', currentTreatment: '', laterality: 'D', gpName: 'Dr. ', gpCity: '',
     antSurgical: '', antTraumaRhuma: '', antOphtalmo: '', antORL: '', antDigestive: '', antNotes: '', medicalHistory: ''
   });
   
@@ -202,7 +202,7 @@ const PatientForm: React.FC<PatientFormProps> = ({ patientId, onCancel, onSucces
 
         <SectionHeader icon={Stethoscope} title="Suivi Médical" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InputField label="Médecin" value={formData.gpName} onChange={(v:string) => setFormData({...formData, gpName: v})} />
+          <InputField label="Médecin Traitant" value={formData.gpName} placeholder="ex: Dr. Martin" onChange={(v:string) => setFormData({...formData, gpName: v})} />
           <InputField label="Ville Médecin" value={formData.gpCity} onChange={(v:string) => setFormData({...formData, gpCity: v})} />
           <div className="sm:col-span-2">
             <InputField label="Traitements actuels" value={formData.currentTreatment} onChange={(v:string) => setFormData({...formData, currentTreatment: v})} />
